@@ -1799,6 +1799,108 @@
     </div>
   </div>
 
+  <!-- ==================== MODAL: VALİDEYN PORTALI (GÖZƏTÇİ REJİMİ) ==================== -->
+  <div v-if="showParentModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-2xl w-full shadow-2xl border border-slate-100 relative max-h-[90vh] overflow-y-auto space-y-6">
+      <button @click="showParentModal = false" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+      
+      <div class="text-center">
+        <div class="w-14 h-14 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center text-3xl mx-auto shadow-sm">
+          👨‍👩‍👧
+        </div>
+        <h3 class="text-2xl font-black text-slate-900 mt-2">Valideyn Şəxsi Kabineti</h3>
+        <p class="text-xs text-slate-500 mt-1">Övladınızın istifadəçi adını və ya ad-soyadını daxil edərək gündəliyi, KSQ ballarını və davamiyyəti izləyin</p>
+      </div>
+
+      <!-- Search Input -->
+      <div class="flex gap-2">
+        <input type="text" v-model="parentQuery" @keyup.enter="searchParentStudent" placeholder="Şagirdin istifadəçi adı (məs. shagird_102) və ya ad-soyadı" class="flex-1 bg-white border border-slate-300 rounded-2xl px-4 py-3 text-xs sm:text-sm font-medium focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20">
+        <button @click="searchParentStudent" :disabled="parentSearchLoading" class="touch-btn px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-xs sm:text-sm font-bold shadow-md">
+          {{ parentSearchLoading ? 'Axtarılır...' : 'Axtar 🔍' }}
+        </button>
+      </div>
+
+      <div v-if="parentSearchError" class="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium text-center">
+        {{ parentSearchError }}
+      </div>
+
+      <!-- Result Card -->
+      <div v-if="parentStudentData" class="space-y-5 pt-2 border-t border-slate-100">
+        <!-- Student Info -->
+        <div class="bg-gradient-to-r from-amber-50 to-orange-50 p-5 rounded-2xl border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-200/70 px-2 py-0.5 rounded-full">Şagird</span>
+            <h4 class="text-xl font-black text-slate-900 mt-1">{{ parentStudentData.student.full_name }}</h4>
+            <p class="text-xs text-slate-600 mt-0.5">
+              Məktəb: <strong>{{ parentStudentData.student.school_name }}</strong> • Sinif: <strong>{{ parentStudentData.student.class_name }}</strong>
+            </p>
+          </div>
+          <div class="text-left sm:text-right">
+            <span class="text-xs text-slate-500">Sinif Rəhbəri:</span>
+            <p class="text-xs font-bold text-slate-800">{{ parentStudentData.student.head_teacher_name || 'Təyin olunmayıb' }}</p>
+          </div>
+        </div>
+
+        <!-- Attendance Pill -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-center">
+            <span class="text-[10px] text-slate-400 font-bold uppercase">Cəmi Gün</span>
+            <div class="text-lg font-black text-slate-800 mt-0.5">{{ parentStudentData.attendance.total_recorded }}</div>
+          </div>
+          <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-200 text-center">
+            <span class="text-[10px] text-emerald-600 font-bold uppercase">İştirak</span>
+            <div class="text-lg font-black text-emerald-800 mt-0.5">{{ parentStudentData.attendance.present }} gün</div>
+          </div>
+          <div class="bg-rose-50 p-3 rounded-xl border border-rose-200 text-center">
+            <span class="text-[10px] text-rose-600 font-bold uppercase">Qaib (Q)</span>
+            <div class="text-lg font-black text-rose-800 mt-0.5">{{ parentStudentData.attendance.absent }} gün</div>
+          </div>
+          <div class="bg-blue-50 p-3 rounded-xl border border-blue-200 text-center">
+            <span class="text-[10px] text-blue-600 font-bold uppercase">Davamiyyət %</span>
+            <div class="text-lg font-black text-blue-800 mt-0.5">{{ parentStudentData.attendance.percentage }}%</div>
+          </div>
+        </div>
+
+        <!-- Recent KSQ Grades -->
+        <div class="space-y-2">
+          <h5 class="text-xs font-bold text-slate-900 uppercase tracking-wider">⭐ Son KSQ və BSQ Qiymətləri</h5>
+          <div v-if="parentStudentData.recent_grades.length === 0" class="text-xs text-slate-400 py-3 text-center bg-slate-50 rounded-xl">Hələlik qiymət daxil edilməyib.</div>
+          <div v-else class="divide-y divide-slate-100 bg-white border border-slate-200 rounded-2xl overflow-hidden">
+            <div v-for="g in parentStudentData.recent_grades" :key="g.date + g.subject + g.grade_type" class="p-3 flex items-center justify-between text-xs hover:bg-slate-50">
+              <div>
+                <span class="font-bold text-slate-800">{{ g.subject }}</span>
+                <span class="text-slate-400 ml-2">📅 {{ g.date }}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="uppercase text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{{ g.grade_type }}</span>
+                <span class="font-black text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">{{ g.score }} bal</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Homeworks -->
+        <div class="space-y-2">
+          <h5 class="text-xs font-bold text-slate-900 uppercase tracking-wider">📚 Aktiv Ev Tapşırıqları</h5>
+          <div v-if="parentStudentData.homeworks.length === 0" class="text-xs text-slate-400 py-3 text-center bg-slate-50 rounded-xl">Aktiv ev tapşırığı yoxdur.</div>
+          <div v-else class="space-y-2">
+            <div v-for="hw in parentStudentData.homeworks" :key="hw.id" class="p-3 rounded-2xl border text-xs flex items-center justify-between" :class="hw.status === 'completed' ? 'bg-emerald-50/50 border-emerald-200' : 'bg-white border-slate-200'">
+              <div>
+                <div class="font-bold text-slate-900">{{ hw.title }} ({{ hw.subject }})</div>
+                <div class="text-slate-500 text-[11px] mt-0.5">Təslim: 📅 {{ hw.due_date }}</div>
+              </div>
+              <span :class="hw.status === 'completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'" class="px-2.5 py-1 rounded-full font-bold text-[11px]">
+                {{ hw.status === 'completed' ? '✓ Yerinə yetirilib' : '⏳ Gözləyir' }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
   <!-- Footer -->
   <footer class="bg-slate-900 text-slate-400 py-6 text-center text-xs mt-auto">
     <div class="max-w-5xl mx-auto px-4 space-y-1">
@@ -2795,109 +2897,5 @@
   }).mount('#app');
 </script>
 
-  <!-- ==================== MODAL: VALİDEYN PORTALI (GÖZƏTÇİ REJİMİ) ==================== -->
-  <div v-if="showParentModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-    <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-2xl w-full shadow-2xl border border-slate-100 relative max-h-[90vh] overflow-y-auto space-y-6">
-      <button @click="showParentModal = false" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
-      
-      <div class="text-center">
-        <div class="w-14 h-14 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center text-3xl mx-auto shadow-sm">
-          👨‍👩‍👧
-        </div>
-        <h3 class="text-2xl font-black text-slate-900 mt-2">Valideyn Şəxsi Kabineti</h3>
-        <p class="text-xs text-slate-500 mt-1">Övladınızın istifadəçi adını və ya ad-soyadını daxil edərək gündəliyi, KSQ ballarını və davamiyyəti izləyin</p>
-      </div>
-
-      <!-- Search Input -->
-      <div class="flex gap-2">
-        <input type="text" v-model="parentQuery" @keyup.enter="searchParentStudent" placeholder="Şagirdin istifadəçi adı (məs. shagird_102) və ya ad-soyadı" class="flex-1 bg-white border border-slate-300 rounded-2xl px-4 py-3 text-xs sm:text-sm font-medium focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20">
-        <button @click="searchParentStudent" :disabled="parentSearchLoading" class="touch-btn px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-xs sm:text-sm font-bold shadow-md">
-          {{ parentSearchLoading ? 'Axtarılır...' : 'Axtar 🔍' }}
-        </button>
-      </div>
-
-      <div v-if="parentSearchError" class="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium text-center">
-        {{ parentSearchError }}
-      </div>
-
-      <!-- Result Card -->
-      <div v-if="parentStudentData" class="space-y-5 pt-2 border-t border-slate-100">
-        <!-- Student Info -->
-        <div class="bg-gradient-to-r from-amber-50 to-orange-50 p-5 rounded-2xl border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <span class="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-200/70 px-2 py-0.5 rounded-full">Şagird</span>
-            <h4 class="text-xl font-black text-slate-900 mt-1">{{ parentStudentData.student.full_name }}</h4>
-            <p class="text-xs text-slate-600 mt-0.5">
-              Məktəb: <strong>{{ parentStudentData.student.school_name }}</strong> • Sinif: <strong>{{ parentStudentData.student.class_name }}</strong>
-            </p>
-          </div>
-          <div class="text-left sm:text-right">
-            <span class="text-xs text-slate-500">Sinif Rəhbəri:</span>
-            <p class="text-xs font-bold text-slate-800">{{ parentStudentData.student.head_teacher_name || 'Təyin olunmayıb' }}</p>
-          </div>
-        </div>
-
-        <!-- Attendance Pill -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-center">
-            <span class="text-[10px] text-slate-400 font-bold uppercase">Cəmi Gün</span>
-            <div class="text-lg font-black text-slate-800 mt-0.5">{{ parentStudentData.attendance.total_recorded }}</div>
-          </div>
-          <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-200 text-center">
-            <span class="text-[10px] text-emerald-600 font-bold uppercase">İştirak</span>
-            <div class="text-lg font-black text-emerald-800 mt-0.5">{{ parentStudentData.attendance.present }} gün</div>
-          </div>
-          <div class="bg-rose-50 p-3 rounded-xl border border-rose-200 text-center">
-            <span class="text-[10px] text-rose-600 font-bold uppercase">Qaib (Q)</span>
-            <div class="text-lg font-black text-rose-800 mt-0.5">{{ parentStudentData.attendance.absent }} gün</div>
-          </div>
-          <div class="bg-blue-50 p-3 rounded-xl border border-blue-200 text-center">
-            <span class="text-[10px] text-blue-600 font-bold uppercase">Davamiyyət %</span>
-            <div class="text-lg font-black text-blue-800 mt-0.5">{{ parentStudentData.attendance.percentage }}%</div>
-          </div>
-        </div>
-
-        <!-- Recent KSQ Grades -->
-        <div class="space-y-2">
-          <h5 class="text-xs font-bold text-slate-900 uppercase tracking-wider">⭐ Son KSQ və BSQ Qiymətləri</h5>
-          <div v-if="parentStudentData.recent_grades.length === 0" class="text-xs text-slate-400 py-3 text-center bg-slate-50 rounded-xl">Hələlik qiymət daxil edilməyib.</div>
-          <div v-else class="divide-y divide-slate-100 bg-white border border-slate-200 rounded-2xl overflow-hidden">
-            <div v-for="g in parentStudentData.recent_grades" :key="g.date + g.subject + g.grade_type" class="p-3 flex items-center justify-between text-xs hover:bg-slate-50">
-              <div>
-                <span class="font-bold text-slate-800">{{ g.subject }}</span>
-                <span class="text-slate-400 ml-2">📅 {{ g.date }}</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="uppercase text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{{ g.grade_type }}</span>
-                <span class="font-black text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">{{ g.score }} bal</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Active Homeworks -->
-        <div class="space-y-2">
-          <h5 class="text-xs font-bold text-slate-900 uppercase tracking-wider">📚 Aktiv Ev Tapşırıqları</h5>
-          <div v-if="parentStudentData.homeworks.length === 0" class="text-xs text-slate-400 py-3 text-center bg-slate-50 rounded-xl">Aktiv ev tapşırığı yoxdur.</div>
-          <div v-else class="space-y-2">
-            <div v-for="hw in parentStudentData.homeworks" :key="hw.id" class="p-3 rounded-2xl border text-xs flex items-center justify-between" :class="hw.status === 'completed' ? 'bg-emerald-50/50 border-emerald-200' : 'bg-white border-slate-200'">
-              <div>
-                <div class="font-bold text-slate-900">{{ hw.title }} ({{ hw.subject }})</div>
-                <div class="text-slate-500 text-[11px] mt-0.5">Təslim: 📅 {{ hw.due_date }}</div>
-              </div>
-              <span :class="hw.status === 'completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'" class="px-2.5 py-1 rounded-full font-bold text-[11px]">
-                {{ hw.status === 'completed' ? '✓ Yerinə yetirilib' : '⏳ Gözləyir' }}
-              </span>
-            </div>
-          </div>
-        </div>
-
-      </div>
-
-    </div>
-  </div>
-
-  
-
-</body>
+  </body>
 </html>
