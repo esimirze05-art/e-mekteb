@@ -207,7 +207,7 @@
             </div>
             <div class="flex items-center gap-2">
               <h2 class="text-xl font-black text-slate-900">Valideyn Portalı</h2>
-              <span class="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">Gözətçi</span>
+              
             </div>
             <p class="text-xs text-slate-500 mt-1 leading-relaxed">
               Şagird kodu və ya adı ilə övladınızın gündəliyi, KSQ balları, davamiyyət və tapşırıqlarını izləyin.
@@ -1529,16 +1529,40 @@
           <input type="text" v-model="teacherRegForm.full_name" required placeholder="Məs. Məmmədova Leyla" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs">
         </div>
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">📚 Tədris Etdiyiniz Fənn (Seçin)</label>
-          <select v-model="teacherSelectedSubject" @change="onTeacherSubjectChange" required 
-                  class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-brand-500 shadow-xs">
-            <option value="">Fənn seçin (25+ fənn siyahısı)...</option>
-            <option v-for="subj in schoolSubjectsList" :key="subj" :value="subj">{{ subj }}</option>
-          </select>
-          <input v-if="teacherSelectedSubject === 'Digər fənn'" type="text" v-model="teacherCustomSubject" 
-                 @input="teacherRegForm.subject = teacherCustomSubject" required 
-                 placeholder="Tədris etdiyiniz fənni qeyd edin..." 
-                 class="w-full bg-amber-50 border border-amber-300 rounded-xl px-3 py-2 text-xs mt-1.5 focus:ring-2 focus:ring-brand-500 font-medium">
+          <label class="block text-xs font-bold text-slate-700 mb-1">
+            📚 Tədris Etdiyiniz Fənn(lər) <span class="text-[11px] font-normal text-violet-600">(1 və ya 1+ fənn seçə bilərsiniz)</span>
+          </label>
+          
+          <!-- Seçilmiş Fənlər (Badges) -->
+          <div v-if="teacherSelectedSubjects.length > 0" class="flex flex-wrap gap-1.5 p-2.5 bg-violet-50/80 border border-violet-200 rounded-xl mb-2">
+            <span v-for="(subj, idx) in teacherSelectedSubjects" :key="subj" 
+                  class="inline-flex items-center gap-1.5 px-3 py-1 bg-violet-600 text-white rounded-lg text-xs font-bold shadow-xs">
+              <span>{{ subj }}</span>
+              <button type="button" @click="removeTeacherSubject(idx)" class="text-violet-200 hover:text-white font-black text-sm leading-none ml-1 focus:outline-none" title="Sil">&times;</button>
+            </span>
+          </div>
+          <div v-else class="text-[11px] text-slate-400 italic mb-2">
+            * Hələ heç bir fənn seçilməyib. Aşağıdakı siyahıdan bir və ya bir neçə fənn seçin:
+          </div>
+
+          <!-- Fənn əlavə et dropdown -->
+          <div class="space-y-1.5">
+            <select v-model="teacherDropdownSubject" @change="addTeacherSubjectFromDropdown" 
+                    class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-brand-500 shadow-xs">
+              <option value="">+ Fənn əlavə et (25+ fənn siyahısı)...</option>
+              <option v-for="subj in schoolSubjectsList" :key="subj" :value="subj">{{ subj }}</option>
+            </select>
+
+            <!-- Digər fənn əlavə etmə xanası -->
+            <div v-if="teacherDropdownSubject === 'Digər fənn' || showCustomSubjectField" class="flex gap-2 pt-1">
+              <input type="text" v-model="teacherCustomSubjectInput" @keyup.enter="addCustomTeacherSubject" 
+                     placeholder="Fənnin adını dəqiq yazın..." 
+                     class="flex-1 bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-brand-500">
+              <button type="button" @click="addCustomTeacherSubject" class="touch-btn px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold shadow-xs">
+                + Əlavə Et
+              </button>
+            </div>
+          </div>
         </div>
         <div>
           <label class="block text-xs font-semibold text-slate-600 mb-1">📱 Mobil Telefon Nömrəniz</label>
@@ -1820,28 +1844,88 @@
     </div>
   </div>
 
-  <!-- ==================== MODAL: VALİDEYN PORTALI (GÖZƏTÇİ REJİMİ) ==================== -->
+  <!-- ==================== MODAL: VALİDEYN PORTALI ==================== -->
   <div v-if="showParentModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-    <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-2xl w-full shadow-2xl border border-slate-100 relative max-h-[90vh] overflow-y-auto space-y-6">
+    <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-2xl w-full shadow-2xl border border-slate-100 relative max-h-[90vh] overflow-y-auto space-y-5">
       <button @click="showParentModal = false" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
       
       <div class="text-center">
         <div class="w-14 h-14 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center text-3xl mx-auto shadow-sm">
           👨‍👩‍👧
         </div>
-        <h3 class="text-2xl font-black text-slate-900 mt-2">Valideyn Şəxsi Kabineti</h3>
-        <p class="text-xs text-slate-500 mt-1">Övladınızın istifadəçi adını və ya ad-soyadını daxil edərək gündəliyi, KSQ ballarını və davamiyyəti izləyin</p>
+        <h3 class="text-2xl font-black text-slate-900 mt-2">Valideyn Portalı</h3>
+        <p class="text-xs text-slate-500 mt-1">Övladınızın təhsil aldığı rayon, məktəb və sinfi seçərək nəticələrə baxın</p>
       </div>
 
-      <!-- Search Input -->
-      <div class="flex gap-2">
-        <input type="text" v-model="parentQuery" @keyup.enter="searchParentStudent" placeholder="Şagirdin istifadəçi adı, ad-soyadı və ya mobil nömrəsi" class="flex-1 bg-white border border-slate-300 rounded-2xl px-4 py-3 text-xs sm:text-sm font-medium focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20">
-        <button @click="searchParentStudent" :disabled="parentSearchLoading" class="touch-btn px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-xs sm:text-sm font-bold shadow-md">
-          {{ parentSearchLoading ? 'Axtarılır...' : 'Axtar 🔍' }}
-        </button>
+      <!-- Addım-Addım Seçim Bloku: Rayon -> Məktəb -> Sinif -> Şagird -->
+      <div class="bg-gradient-to-br from-amber-50/90 via-orange-50/40 to-amber-50/90 p-5 rounded-3xl border border-amber-200/90 space-y-4 shadow-sm">
+        <div class="flex items-center justify-between border-b border-amber-200/60 pb-2.5">
+          <span class="text-xs font-black text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
+            <span>🎯</span>
+            <span>Övladınızı 4 Sadə Addımla Seçin</span>
+          </span>
+          <span class="text-[10px] text-amber-800 font-bold bg-amber-200/70 px-2.5 py-0.5 rounded-full">Addım-Addım</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <!-- Addım 1: Rayon / Şəhər -->
+          <div class="space-y-1">
+            <label class="block text-[11px] font-bold text-slate-700">📍 1. Şəhər və ya Rayon:</label>
+            <select v-model="parentSelectedRegion" @change="onParentRegionChange" 
+                    class="w-full bg-white border border-amber-300 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500 shadow-xs">
+              <option value="">Şəhər / Rayon seçin ({{ allRegions.length }} rayon)...</option>
+              <option v-for="r in allRegions" :key="r" :value="r">{{ r }}</option>
+            </select>
+          </div>
+
+          <!-- Addım 2: Məktəb -->
+          <div class="space-y-1">
+            <label class="block text-[11px] font-bold text-slate-700">🏫 2. Məktəb:</label>
+            <select v-model="parentSelectedSchoolId" @change="onParentSchoolChange" :disabled="!parentSelectedRegion"
+                    class="w-full bg-white border border-amber-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-amber-500 shadow-xs disabled:bg-slate-100 disabled:text-slate-400">
+              <option value="">{{ parentSelectedRegion ? 'Məktəb seçin (' + parentRegionSchools.length + ' məktəb)...' : 'Əvvəlcə Şəhər/Rayon seçin...' }}</option>
+              <option v-for="s in parentRegionSchools" :key="s.id" :value="s.id">{{ s.name }}</option>
+            </select>
+          </div>
+
+          <!-- Addım 3: Sinif -->
+          <div class="space-y-1">
+            <label class="block text-[11px] font-bold text-slate-700">👥 3. Sinif:</label>
+            <select v-model="parentSelectedClassId" @change="onParentClassChange" :disabled="!parentSelectedSchoolId"
+                    class="w-full bg-white border border-amber-300 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 focus:ring-2 focus:ring-amber-500 shadow-xs disabled:bg-slate-100 disabled:text-slate-400">
+              <option value="">{{ parentSelectedSchoolId ? 'Sinif seçin (' + parentSchoolClasses.length + ' sinif)...' : 'Əvvəlcə Məktəb seçin...' }}</option>
+              <option v-for="c in parentSchoolClasses" :key="c.id" :value="c.id">{{ c.name }} Sinfi</option>
+            </select>
+          </div>
+
+          <!-- Addım 4: Şagird -->
+          <div class="space-y-1">
+            <label class="block text-[11px] font-bold text-slate-700">👦 4. Şagird (Övladınız):</label>
+            <select v-model="parentSelectedStudentId" @change="onParentStudentSelect" :disabled="!parentSelectedClassId"
+                    class="w-full bg-white border-2 border-amber-400 rounded-xl px-3 py-2 text-xs font-black text-amber-950 focus:ring-2 focus:ring-amber-500 shadow-xs disabled:bg-slate-100 disabled:text-slate-400">
+              <option value="">{{ parentSelectedClassId ? 'Şagirdi seçin (' + parentClassStudents.length + ' şagird)...' : 'Əvvəlcə Sinif seçin...' }}</option>
+              <option v-for="st in parentClassStudents" :key="st.id" :value="st.id">{{ st.full_name }}</option>
+            </select>
+          </div>
+        </div>
       </div>
 
-      <div v-if="parentSearchError" class="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium text-center">
+      <!-- Alternativ: Birbaşa Axtarış Açılan Qapaq -->
+      <div class="text-center pt-0.5">
+        <details class="text-left text-xs">
+          <summary class="cursor-pointer font-bold text-amber-800 hover:text-amber-950 list-none text-center py-1">
+            🔍 Və ya birbaşa Axtarışla tapın (İstifadəçi adı / Ad-soyad / Telefon) ▾
+          </summary>
+          <div class="flex gap-2 mt-2 pt-2 border-t border-slate-100">
+            <input type="text" v-model="parentQuery" @keyup.enter="searchParentStudent" placeholder="Şagirdin istifadəçi adı, ad-soyadı və ya mobil nömrəsi..." class="flex-1 bg-white border border-slate-300 rounded-2xl px-4 py-2 text-xs font-medium focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20">
+            <button @click="searchParentStudent" :disabled="parentSearchLoading" class="touch-btn px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-xs font-bold shadow-md">
+              {{ parentSearchLoading ? 'Axtarılır...' : 'Axtar 🔍' }}
+            </button>
+          </div>
+        </details>
+      </div>
+
+      <div v-if="parentSearchError" class="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium text-center">
         {{ parentSearchError }}
       </div>
 
@@ -1974,6 +2058,13 @@
         parentStudentData: null,
         parentSearchLoading: false,
         parentSearchError: '',
+        parentSelectedRegion: '',
+        parentRegionSchools: [],
+        parentSelectedSchoolId: '',
+        parentSchoolClasses: [],
+        parentSelectedClassId: '',
+        parentClassStudents: [],
+        parentSelectedStudentId: '',
         currentUser: null,
         installPrompt: null,
 
@@ -1987,8 +2078,10 @@
         loginForm: { username: '', password: '' },
         studentRegForm: { full_name: '', username: '', password: '', school_id: '', phone: '' },
         teacherRegForm: { full_name: '', subject: '', username: '', password: '', school_id: '', phone: '', class_head_id: null },
-        teacherSelectedSubject: '',
-        teacherCustomSubject: '',
+        teacherSelectedSubjects: [],
+        teacherDropdownSubject: '',
+        teacherCustomSubjectInput: '',
+        showCustomSubjectField: false,
         schoolSubjectsList: [
           'Azərbaycan dili',
           'Ədəbiyyat',
@@ -2118,6 +2211,80 @@
         this.parentQuery = '';
         this.parentStudentData = null;
         this.parentSearchError = '';
+        this.parentSelectedRegion = '';
+        this.parentRegionSchools = [];
+        this.parentSelectedSchoolId = '';
+        this.parentSchoolClasses = [];
+        this.parentSelectedClassId = '';
+        this.parentClassStudents = [];
+        this.parentSelectedStudentId = '';
+      },
+
+      async onParentRegionChange() {
+        this.parentRegionSchools = [];
+        this.parentSelectedSchoolId = '';
+        this.parentSchoolClasses = [];
+        this.parentSelectedClassId = '';
+        this.parentClassStudents = [];
+        this.parentSelectedStudentId = '';
+        this.parentStudentData = null;
+        if (!this.parentSelectedRegion) return;
+        try {
+          const res = await fetch(`/api/schools?region=${encodeURIComponent(this.parentSelectedRegion)}`);
+          if (res.ok) {
+            this.parentRegionSchools = await res.json();
+          }
+        } catch(e) {}
+      },
+
+      async onParentSchoolChange() {
+        this.parentSchoolClasses = [];
+        this.parentSelectedClassId = '';
+        this.parentClassStudents = [];
+        this.parentSelectedStudentId = '';
+        this.parentStudentData = null;
+        if (!this.parentSelectedSchoolId) return;
+        try {
+          const res = await fetch(`/api/classes?school_id=${this.parentSelectedSchoolId}`);
+          if (res.ok) {
+            this.parentSchoolClasses = await res.json();
+          }
+        } catch(e) {}
+      },
+
+      async onParentClassChange() {
+        this.parentClassStudents = [];
+        this.parentSelectedStudentId = '';
+        this.parentStudentData = null;
+        if (!this.parentSelectedClassId) return;
+        try {
+          const res = await fetch(`/api/classes/${this.parentSelectedClassId}/students`);
+          if (res.ok) {
+            this.parentClassStudents = await res.json();
+          }
+        } catch(e) {}
+      },
+
+      async onParentStudentSelect() {
+        if (!this.parentSelectedStudentId) {
+          this.parentStudentData = null;
+          return;
+        }
+        this.parentSearchLoading = true;
+        this.parentSearchError = '';
+        try {
+          const res = await fetch(`/api/parent/student-lookup?student_id=${this.parentSelectedStudentId}`);
+          if (res.ok) {
+            this.parentStudentData = await res.json();
+          } else {
+            const err = await res.json();
+            this.parentSearchError = err.detail || 'Şagird tapılmadı';
+          }
+        } catch(e) {
+          this.parentSearchError = 'Məlumat yüklənərkən xəta baş verdi';
+        } finally {
+          this.parentSearchLoading = false;
+        }
       },
 
       async searchParentStudent() {
@@ -2222,6 +2389,10 @@
         this.registrationSelectedRegion = '';
         this.regionSchoolsList = [];
         this.schoolSearchQuery = '';
+        this.teacherSelectedSubjects = [];
+        this.teacherDropdownSubject = '';
+        this.teacherCustomSubjectInput = '';
+        this.showCustomSubjectField = false;
         this.showAuthModal = true;
       },
 
@@ -2305,24 +2476,42 @@
         }
       },
 
-      onTeacherSubjectChange() {
-        if (this.teacherSelectedSubject === 'Digər fənn') {
-          this.teacherRegForm.subject = this.teacherCustomSubject.trim();
-        } else {
-          this.teacherRegForm.subject = this.teacherSelectedSubject;
+      addTeacherSubjectFromDropdown() {
+        if (!this.teacherDropdownSubject) return;
+        if (this.teacherDropdownSubject === 'Digər fənn') {
+          this.showCustomSubjectField = true;
+          return;
         }
+        if (!this.teacherSelectedSubjects.includes(this.teacherDropdownSubject)) {
+          this.teacherSelectedSubjects.push(this.teacherDropdownSubject);
+          this.teacherRegForm.subject = this.teacherSelectedSubjects.join(', ');
+        }
+        this.teacherDropdownSubject = '';
+      },
+
+      addCustomTeacherSubject() {
+        const clean = (this.teacherCustomSubjectInput || '').trim();
+        if (!clean) return;
+        if (!this.teacherSelectedSubjects.includes(clean)) {
+          this.teacherSelectedSubjects.push(clean);
+          this.teacherRegForm.subject = this.teacherSelectedSubjects.join(', ');
+        }
+        this.teacherCustomSubjectInput = '';
+        this.teacherDropdownSubject = '';
+        this.showCustomSubjectField = false;
+      },
+
+      removeTeacherSubject(idx) {
+        this.teacherSelectedSubjects.splice(idx, 1);
+        this.teacherRegForm.subject = this.teacherSelectedSubjects.join(', ');
       },
 
       async handleTeacherRegister() {
-        if (this.teacherSelectedSubject === 'Digər fənn') {
-          this.teacherRegForm.subject = this.teacherCustomSubject.trim();
-        } else {
-          this.teacherRegForm.subject = this.teacherSelectedSubject;
-        }
-        if (!this.teacherRegForm.subject) {
-          this.showToast('Zəhmət olmasa tədris etdiyiniz fənni seçin!', 'error');
+        if (this.teacherSelectedSubjects.length === 0) {
+          this.showToast('Zəhmət olmasa ən azı 1 fənn seçin!', 'error');
           return;
         }
+        this.teacherRegForm.subject = this.teacherSelectedSubjects.join(', ');
         this.isSubmitting = true;
         try {
           const res = await fetch('/api/auth/register-teacher', {
