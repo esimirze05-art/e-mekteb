@@ -85,6 +85,7 @@ class RegisterTeacherRequest(BaseModel):
     password: str
     subject: str
     school_id: Optional[int] = 1
+    phone: Optional[str] = ""
     class_head_id: Optional[int] = None
     teaching_class_ids: Optional[List[int]] = []
 
@@ -93,6 +94,7 @@ class RegisterStudentRequest(BaseModel):
     username: str
     password: str
     school_id: Optional[int] = 1
+    phone: Optional[str] = ""
 
 class AddStudentToClassRequest(BaseModel):
     class_id: int
@@ -315,9 +317,9 @@ def register_student(req: RegisterStudentRequest):
 
     try:
         cursor.execute("""
-        INSERT INTO users (username, password_hash, full_name, role, school_id, status)
-        VALUES (?, ?, ?, 'student', ?, 'pending')
-        """, (clean_username, hash_pass(req.password), req.full_name.strip(), req.school_id or 1))
+        INSERT INTO users (username, password_hash, full_name, role, school_id, status, phone)
+        VALUES (?, ?, ?, 'student', ?, 'pending', ?)
+        """, (clean_username, hash_pass(req.password), req.full_name.strip(), req.school_id or 1, (req.phone or "").strip()))
         conn.commit()
         student_id = cursor.lastrowid
     except sqlite3.IntegrityError:
@@ -338,9 +340,9 @@ def register_teacher(req: RegisterTeacherRequest):
 
     try:
         cursor.execute("""
-        INSERT INTO users (username, password_hash, full_name, role, subject, school_id, class_head_id, status)
-        VALUES (?, ?, ?, 'teacher', ?, ?, ?, 'pending')
-        """, (clean_username, hash_pass(req.password), req.full_name.strip(), req.subject.strip(), req.school_id or 1, req.class_head_id))
+        INSERT INTO users (username, password_hash, full_name, role, subject, school_id, class_head_id, status, phone)
+        VALUES (?, ?, ?, 'teacher', ?, ?, ?, 'pending', ?)
+        """, (clean_username, hash_pass(req.password), req.full_name.strip(), req.subject.strip(), req.school_id or 1, req.class_head_id, (req.phone or "").strip()))
         teacher_id = cursor.lastrowid
 
         if req.teaching_class_ids:
@@ -1563,17 +1565,23 @@ def parent_student_lookup(query: str, school_id: Optional[int] = None):
     cursor = conn.cursor()
 
     q_clean = query.strip()
+    clean_num = q_clean.replace(" ", "").replace("-", "").replace("+", "")
     sql = """
-    SELECT u.id, u.full_name, u.username, u.class_id, u.school_id, c.name as class_name,
+    SELECT u.id, u.full_name, u.username, u.phone, u.class_id, u.school_id, c.name as class_name,
            s.name as school_name, t_head.full_name as head_teacher_name
     FROM users u
     LEFT JOIN schools s ON u.school_id = s.id
     LEFT JOIN classes c ON u.class_id = c.id
     LEFT JOIN users t_head ON t_head.class_head_id = c.id
     WHERE u.role = 'student' AND u.status = 'approved'
-      AND (u.username = ? OR LOWER(u.full_name) LIKE LOWER(?))
+      AND (
+          u.username = ? 
+          OR LOWER(u.full_name) LIKE LOWER(?)
+          OR u.phone = ?
+          OR REPLACE(REPLACE(REPLACE(u.phone, ' ', ''), '-', ''), '+', '') = ?
+      )
     """
-    params = [q_clean, f"%{q_clean}%"]
+    params = [q_clean, f"%{q_clean}%", q_clean, clean_num]
     if school_id:
         sql += " AND u.school_id = ?"
         params.append(school_id)
