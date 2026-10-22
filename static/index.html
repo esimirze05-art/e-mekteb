@@ -1403,6 +1403,10 @@
           <input type="text" v-model="studentRegForm.full_name" required placeholder="Məs. Əliyev Murad" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs">
         </div>
         <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">📱 Mobil Telefon Nömrəsi (Şagird və ya Valideyn)</label>
+          <input type="tel" v-model="studentRegForm.phone" placeholder="+994 50 123 45 67" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs">
+        </div>
+        <div>
           <label class="block text-xs font-semibold text-slate-600 mb-1">İstifadəçi Adı</label>
           <input type="text" v-model="studentRegForm.username" required placeholder="Məs. murad31" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs">
         </div>
@@ -1527,6 +1531,10 @@
         <div>
           <label class="block text-xs font-semibold text-slate-600 mb-1">Fənniniz</label>
           <input type="text" v-model="teacherRegForm.subject" required placeholder="Məs. Riyaziyyat" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">📱 Mobil Telefon Nömrəniz</label>
+          <input type="tel" v-model="teacherRegForm.phone" placeholder="+994 50 123 45 67" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs">
         </div>
         <div>
           <label class="block text-xs font-semibold text-slate-600 mb-1">İstifadəçi Adı</label>
@@ -1819,7 +1827,7 @@
 
       <!-- Search Input -->
       <div class="flex gap-2">
-        <input type="text" v-model="parentQuery" @keyup.enter="searchParentStudent" placeholder="Şagirdin istifadəçi adı (məs. shagird_102) və ya ad-soyadı" class="flex-1 bg-white border border-slate-300 rounded-2xl px-4 py-3 text-xs sm:text-sm font-medium focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20">
+        <input type="text" v-model="parentQuery" @keyup.enter="searchParentStudent" placeholder="Şagirdin istifadəçi adı, ad-soyadı və ya mobil nömrəsi" class="flex-1 bg-white border border-slate-300 rounded-2xl px-4 py-3 text-xs sm:text-sm font-medium focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20">
         <button @click="searchParentStudent" :disabled="parentSearchLoading" class="touch-btn px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-xs sm:text-sm font-bold shadow-md">
           {{ parentSearchLoading ? 'Axtarılır...' : 'Axtar 🔍' }}
         </button>
@@ -1969,7 +1977,7 @@
         isSaving: false,
 
         loginForm: { username: '', password: '' },
-        studentRegForm: { full_name: '', username: '', password: '', school_id: '' },
+        studentRegForm: { full_name: '', username: '', password: '', school_id: '', phone: '' },
         teacherRegForm: { full_name: '', subject: '', username: '', password: '', school_id: '', class_head_id: null },
         directorRegForm: { full_name: '', username: '', password: '', phone: '', school_id: '' },
         registrationSelectedRegion: '',
@@ -2066,6 +2074,34 @@
       }
     },
     methods: {
+      // ----------------- VALİDEYN PORTALI METODLARI -----------------
+      openParentModal() {
+        this.showParentModal = true;
+        this.parentQuery = '';
+        this.parentStudentData = null;
+        this.parentSearchError = '';
+      },
+
+      async searchParentStudent() {
+        if (!this.parentQuery.trim()) return;
+        this.parentSearchLoading = true;
+        this.parentSearchError = '';
+        this.parentStudentData = null;
+        try {
+          const res = await fetch(`/api/parent/student-lookup?query=${encodeURIComponent(this.parentQuery.trim())}`);
+          if (res.ok) {
+            this.parentStudentData = await res.json();
+          } else {
+            const err = await res.json();
+            this.parentSearchError = err.detail || 'Qeyd edilən məlumatla şagird tapılmadı';
+          }
+        } catch(e) {
+          this.parentSearchError = 'Əlaqə xətası baş verdi';
+        } finally {
+          this.parentSearchLoading = false;
+        }
+      },
+
       showToast(msg, type = 'success') {
         this.toast.message = msg;
         this.toast.type = type;
