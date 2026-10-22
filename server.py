@@ -411,6 +411,26 @@ def change_own_password(req: ChangeOwnPasswordRequest, user_id: int = Header(...
     conn.close()
     return {"success": True, "message": "Şifrəniz uğurla dəyişdirildi!"}
 
+@app.delete("/api/auth/delete-own-account")
+def delete_own_account(user_id: int = Header(..., alias="X-User-Id")):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, role, full_name FROM users WHERE id = ?", (user_id,))
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        raise HTTPException(status_code=404, detail="İstifadəçi tapılmadı!")
+    if row[1] == "admin":
+        conn.close()
+        raise HTTPException(status_code=400, detail="Super Admin hesabı silinə bilməz!")
+    cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    cursor.execute("DELETE FROM teacher_classes WHERE teacher_id = ?", (user_id,))
+    cursor.execute("DELETE FROM attendance WHERE student_id = ?", (user_id,))
+    cursor.execute("DELETE FROM grades WHERE student_id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+    return {"success": True, "message": "Hesabınız sistemdən tamamilə silindi."}
+
 @app.post("/api/auth/forgot-password-request")
 def forgot_password_request(req: ForgotPasswordSubmitRequest):
     clean_username = req.username.strip().lower()
@@ -619,6 +639,7 @@ def admin_schools_summary(region: Optional[str] = None):
     cursor = conn.cursor()
     query = """
     SELECT s.id, s.name, s.region,
+           (SELECT u.id FROM users u WHERE u.school_id = s.id AND u.role = 'director' AND u.status = 'approved' LIMIT 1) as director_id,
            (SELECT u.full_name FROM users u WHERE u.school_id = s.id AND u.role = 'director' AND u.status = 'approved' LIMIT 1) as director_name,
            (SELECT COUNT(*) FROM users u WHERE u.school_id = s.id AND u.role = 'teacher' AND u.status = 'approved') as teacher_count,
            (SELECT COUNT(*) FROM users u WHERE u.school_id = s.id AND u.role = 'student' AND u.status = 'approved') as student_count,
@@ -656,6 +677,46 @@ def revoke_school_moderator(user_id: int):
     conn.commit()
     conn.close()
     return {"success": True, "message": "Nəzarətçi vəzifəsi ləğv edildi."}
+
+@app.get("/api/admin/directors")
+def admin_list_directors(school_id: Optional[int] = None):
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    query = """
+    SELECT u.id, u.username, u.full_name, u.phone, u.status, u.is_moderator, u.school_id, u.created_at,
+           s.name as school_name, s.region
+    FROM users u
+    LEFT JOIN schools s ON u.school_id = s.id
+    WHERE u.role = 'director'
+    """
+    params = []
+    if school_id:
+        query += " AND u.school_id = ?"
+        params.append(school_id)
+    query += " ORDER BY u.created_at DESC"
+    cursor.execute(query, params)
+    res = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return res
+
+@app.post("/api/admin/directors/{director_id}/reset-password")
+def admin_reset_director_password(director_id: int, req: AdminResetPasswordRequest):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("UPDATE users SET password_hash = ? WHERE id = ? AND role = 'director'", (hash_pass(req.new_password.strip()), director_id))
+    conn.commit()
+    conn.close()
+    return {"success": True, "message": "Direktorun şifrəsi yeniləndi!"}
+
+@app.delete("/api/admin/directors/{director_id}")
+def admin_delete_director(director_id: int):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM users WHERE id = ? AND role = 'director'", (director_id,))
+    conn.commit()
+    conn.close()
+    return {"success": True, "message": "Direktor hesabı uğurla silindi! 🗑️"}
 
 @app.get("/api/admin/teachers")
 def admin_list_teachers(school_id: Optional[int] = None):
