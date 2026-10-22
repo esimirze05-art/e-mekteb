@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mekteb31-v1';
+const CACHE_NAME = 'mekteb31-v2';
 const ASSETS = [
   '/',
   '/static/manifest.json',
