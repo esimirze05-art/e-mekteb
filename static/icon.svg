@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e1b4b" />
+      <stop offset="40%" stop-color="#1e3a8a" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="35%" stop-color="#eab308" />
+      <stop offset="70%" stop-color="#ca8a04" />
+      <stop offset="100%" stop-color="#a16207" />
+    </linearGradient>
+    <linearGradient id="silverGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="50%" stop-color="#e2e8f0" />
+      <stop offset="100%" stop-color="#94a3b8" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Background App Icon Rounded Rect -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
+  
+  <!-- Subtle Outer Gold Inset Border -->
+  <rect x="18" y="18" width="476" height="476" rx="96" fill="none" stroke="url(#goldGrad)" stroke-width="3" opacity="0.6"/>
+
+  <!-- Academic Emblem: Open Book Base -->
+  <g transform="translate(256, 215) scale(0.85)">
+    <!-- Book Wings Left -->
+    <path d="M-10 -10 C-60 -40 -150 -35 -200 20 L-200 130 C-150 85 -60 80 -10 110 Z" fill="url(#silverGrad)" opacity="0.95" filter="url(#glow)"/>
+    <!-- Book Wings Right -->
+    <path d="M10 -10 C60 -40 150 -35 200 20 L200 130 C150 85 60 80 10 110 Z" fill="url(#silverGrad)" opacity="0.95" filter="url(#glow)"/>
+    <!-- Book Pages Layer -->
+    <path d="M-10 10 C-60 -20 -140 -15 -185 35 L-185 120 C-140 75 -60 70 -10 95 Z" fill="#ffffff"/>
+    <path d="M10 10 C60 -20 140 -15 185 35 L185 120 C140 75 60 70 10 95 Z" fill="#ffffff"/>
+    
+    <!-- Torch / Flame of Knowledge at Center Top -->
+    <path d="M0 -75 C-15 -45 -22 -20 0 10 C22 -20 15 -45 0 -75 Z" fill="url(#goldGrad)" filter="url(#glow)"/>
+    <circle cx="0" cy="-20" r="7" fill="#fef08a"/>
+  </g>
+
+  <!-- Central Crest Brand Text: E-məktəb -->
+  <text x="256" y="340" font-family="'Segoe UI', Roboto, -apple-system, sans-serif" font-weight="900" font-size="52" fill="#ffffff" text-anchor="middle" letter-spacing="1">
+    E-məktəb
+  </text>
+  <text x="256" y="370" font-family="'Segoe UI', Roboto, -apple-system, sans-serif" font-weight="600" font-size="16" fill="url(#goldGrad)" text-anchor="middle" letter-spacing="4">
+    RESPUBLİKA PORTALI
+  </text>
+
+  <!-- SECRET ARTISAN MONOGRAM MEDALLION: "Əsma Mirzəliyeva" (Ə.M.) -->
+  <g transform="translate(256, 435)">
+    <!-- Medallion Ribbon Base -->
+    <path d="M-85 -18 L85 -18 L95 14 L-95 14 Z" fill="#0f172a" stroke="url(#goldGrad)" stroke-width="1.8" rx="6"/>
+    <!-- Hidden / Subtle Creator Monogram: Ə.M. -->
+    <text x="0" y="2" font-family="'Brush Script MT', 'Palatino Linotype', 'Georgia', cursive, serif" font-weight="bold" font-size="17" fill="url(#goldGrad)" text-anchor="middle" letter-spacing="1.5">
+      ✧ Ə.M. ✧
+    </text>
+    <!-- Micro Watermark Signature: Əsma Mirzəliyeva -->
+    <text x="0" y="11" font-family="'Segoe UI', sans-serif" font-size="7.5" font-weight="700" fill="#94a3b8" opacity="0.65" text-anchor="middle" letter-spacing="0.8">
+      ƏSMA MİRZƏLİYEVA
+    </text>
+  </g>
+</svg>

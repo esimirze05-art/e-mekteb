@@ -1,0 +1,2415 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>E-məktəb | Respublika Elektron Məktəb Portalı</title>
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="icon" type="image/svg+xml" href="/static/icon.svg">
+  <meta name="theme-color" content="#2563eb">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+
+  <style>
+    [v-cloak] { display: none; }
+    .touch-btn:active { transform: scale(0.97); }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased font-sans min-h-screen flex flex-col selection:bg-brand-500 selection:text-white">
+
+<div id="app" v-cloak class="flex flex-col min-h-screen">
+
+  <!-- Toast Notification -->
+  <div v-if="toast.show" 
+       :class="toast.type === 'error' ? 'bg-rose-600' : 'bg-emerald-600'" 
+       class="fixed top-5 right-5 z-50 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-3 transition-all animate-bounce">
+    <span class="font-medium text-sm">{{ toast.message }}</span>
+    <button @click="toast.show = false" class="text-white/80 hover:text-white font-bold">&times;</button>
+  </div>
+
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm backdrop-blur-md bg-white/95">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      
+      <!-- Brand Logo -->
+      <a href="#" @click.prevent="goHome" class="flex items-center gap-3 group">
+        <img src="/static/logo.png" onerror="this.src='/static/icon.svg'" alt="E-məktəb Logo" class="w-10 h-10 rounded-xl object-cover shadow-md shadow-brand-500/20 group-hover:scale-105 transition-transform border border-amber-300/40">
+        <div>
+          <div class="flex items-center gap-1.5">
+            <span class="font-black text-slate-900 text-lg tracking-tight">E-məktəb</span>
+            <span class="text-xs font-semibold px-1.5 py-0.5 rounded bg-brand-50 text-brand-700 border border-brand-200">Respublika Portalı</span>
+          </div>
+          <p class="text-[11px] text-slate-500 leading-tight">Elektron İdarəetmə və Jurnal</p>
+        </div>
+      </a>
+
+      <!-- Right Action -->
+      <div class="flex items-center gap-3">
+        <button v-if="installPrompt" @click="installPwa" 
+                class="hidden sm:flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-300">
+          <span>📲 Telefona Quraşdır</span>
+        </button>
+
+        <div v-if="currentUser" class="flex items-center gap-2">
+          <div class="text-right hidden sm:block">
+            <p class="text-xs font-bold text-slate-800 leading-none">{{ currentUser.full_name }}</p>
+            <p class="text-[10px] font-bold uppercase tracking-wider mt-0.5" 
+               :class="currentUser.role === 'admin' ? 'text-purple-600' : (currentUser.role === 'director' ? 'text-emerald-700' : (currentUser.is_moderator ? 'text-amber-600' : (currentUser.role === 'teacher' ? 'text-violet-600' : 'text-sky-600')))">
+              {{ currentUser.role === 'admin' ? 'Respublika Super Admin' : (currentUser.role === 'director' ? 'Məktəb Direktoru' : (currentUser.is_moderator ? 'Məktəb Nəzarətçisi' : (currentUser.role === 'teacher' ? 'Müəllim' : 'Şagird'))) }}
+            </p>
+          </div>
+          <button v-if="currentUser.role === 'admin' || currentUser.role === 'director' || currentUser.role === 'teacher'" 
+                  @click="openChangePasswordModal" 
+                  title="Şifrəmi Dəyiş" 
+                  class="touch-btn px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-300 transition-colors flex items-center gap-1 shadow-sm">
+            <span>🔑</span>
+            <span class="hidden md:inline">Şifrəni Dəyiş</span>
+          </button>
+          <button @click="logout" title="Çıxış" 
+                  class="touch-btn px-3 py-1.5 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs font-bold border border-rose-200 transition-colors">
+            Çıxış
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Area -->
+  <main class="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6">
+
+    <!-- ==================== VIEW 1: HOME ==================== -->
+    <div v-if="currentView === 'home'" class="space-y-8 max-w-3xl mx-auto py-8">
+      
+      <div class="text-center space-y-3">
+        <img src="/static/logo.png" onerror="this.src='/static/icon.svg'" alt="E-məktəb Logo" class="w-20 h-20 rounded-3xl mx-auto shadow-lg shadow-brand-500/20 border border-amber-300/40 object-cover">
+        <h1 class="text-3xl font-black text-slate-900 tracking-tight">E-məktəb Portalı</h1>
+        <p class="text-sm text-slate-500">Azərbaycan Respublikasının bütün məktəbləri üçün elektron idarəetmə və jurnal sistemi</p>
+      </div>
+
+      <!-- Action Cards (3 Pillars: Şagird, Müəllim, Məktəb Direktoru) -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2">
+        
+        <!-- 1. ŞAGİRD GİRİŞİ -->
+        <div class="bg-white border-2 border-slate-200 hover:border-sky-400 rounded-3xl p-6 shadow-sm hover:shadow-xl transition-all flex flex-col justify-between h-72">
+          <div>
+            <div class="w-12 h-12 rounded-2xl bg-sky-100 text-sky-600 flex items-center justify-center mb-3">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+            </div>
+            <h2 class="text-xl font-black text-slate-900">Şagird Portalı</h2>
+            <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+              Şəhər/rayon və məktəbinizi seçib qeydiyyatdan keçin. Ev tapşırıqları, davamiyyət və KSQ qiymətlərinizi izləyin.
+            </p>
+          </div>
+          <div class="flex items-center gap-2 pt-4 border-t border-slate-100">
+            <button @click="openAuthModal('student', 'login')" class="touch-btn flex-1 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold text-center">
+              Daxil Ol
+            </button>
+            <button @click="openAuthModal('student', 'register')" class="touch-btn flex-1 py-2.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-xl text-xs font-bold text-center">
+              Qeydiyyat
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. MÜƏLLİM GİRİŞİ -->
+        <div class="bg-white border-2 border-slate-200 hover:border-violet-400 rounded-3xl p-6 shadow-sm hover:shadow-xl transition-all flex flex-col justify-between h-72">
+          <div>
+            <div class="w-12 h-12 rounded-2xl bg-violet-100 text-violet-600 flex items-center justify-center mb-3">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>
+            </div>
+            <h2 class="text-xl font-black text-slate-900">Müəllim Kabineti</h2>
+            <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+              Məktəbinizi seçin, sinif rəhbəri və fənn jurnallarınızı aparın, şagirdlərinizi sinfə əlavə edin, qiymətləndirmə aparın.
+            </p>
+          </div>
+          <div class="flex items-center gap-2 pt-4 border-t border-slate-100">
+            <button @click="openAuthModal('teacher', 'login')" class="touch-btn flex-1 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold text-center">
+              Daxil Ol
+            </button>
+            <button @click="openAuthModal('teacher', 'register')" class="touch-btn flex-1 py-2.5 bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200 rounded-xl text-xs font-bold text-center">
+              Qeydiyyat
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. MƏKTƏB DİREKTORU GİRİŞİ -->
+        <div class="bg-white border-2 border-emerald-200 hover:border-emerald-500 rounded-3xl p-6 shadow-sm hover:shadow-xl transition-all flex flex-col justify-between h-72">
+          <div>
+            <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-3">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+            </div>
+            <h2 class="text-xl font-black text-slate-900">Məktəb Direktoru</h2>
+            <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+              Məktəbin rəhbəri üçün: Rəhbəri olduğunuz məktəbi seçin, müəllim və şagird heyətinə, siniflərə və jurnallara rəhbərlik edin.
+            </p>
+          </div>
+          <div class="flex items-center gap-2 pt-4 border-t border-slate-100">
+            <button @click="openAuthModal('director', 'login')" class="touch-btn flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold text-center shadow-md">
+              Daxil Ol
+            </button>
+            <button @click="openAuthModal('director', 'register')" class="touch-btn flex-1 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-xl text-xs font-bold text-center">
+              Direktor Qeydiyyatı
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Super Admin Entry Button (Distinct from Director) -->
+      <div class="pt-6 text-center">
+        <div class="inline-block bg-purple-50 border border-purple-200 rounded-2xl p-3 shadow-sm max-w-md mx-auto">
+          <p class="text-[11px] text-purple-700 font-semibold mb-2">
+            * Admin məktəb direktoru deyil — Respublika üzrə bütün məktəblərin Baş İnzibatçısıdır.
+          </p>
+          <button @click="openAdminLogin" 
+                  class="touch-btn w-full py-2 bg-purple-900 hover:bg-purple-950 text-white rounded-xl text-xs font-black shadow-md flex items-center justify-center gap-2">
+            <span>🛡️ Respublika Super Admin Girişi (Mirzəliyeva Əsma)</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ==================== VIEW 2: SUPER ADMIN & MƏKTƏB DİREKTORU PANELİ ==================== -->
+    <div v-if="(currentView === 'admin' || currentView === 'director' || (currentUser && (currentUser.role === 'director' || currentUser.is_moderator))) && currentUser" class="space-y-6">
+      
+      <!-- Admin Header Banner -->
+      <div class="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 rounded-3xl p-6 text-white shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full"
+                  :class="currentUser.role === 'admin' ? 'text-purple-300 bg-purple-500/20' : 'text-emerald-300 bg-emerald-500/20'">
+              {{ currentUser.role === 'admin' ? 'Respublika Super Admini' : (currentUser.role === 'director' ? 'Məktəb Direktoru' : 'Məktəb Nəzarətçisi') }}
+            </span>
+            <span v-if="currentUser.school_name" class="text-xs text-purple-200 bg-white/10 px-2.5 py-0.5 rounded-full">
+              📍 {{ currentUser.school_name }} ({{ currentUser.school_region }})
+            </span>
+          </div>
+          <h2 class="text-2xl sm:text-3xl font-black mt-2">
+            {{ currentUser.role === 'admin' ? 'Respublika Super Admin İdarəetmə Mərkəzi' : currentUser.school_name + ' - Direktor Kabineti' }}
+          </h2>
+          <p class="text-xs text-purple-200 mt-1">
+            {{ currentUser.role === 'admin' ? 'Bütün 76 şəhər/rayon, bütün məktəblər, direktorlar və istifadəçilərə mərkəzi nəzarət' : 'Rəhbərlik etdiyiniz məktəbin müəllim və şagird heyəti, təsdiqlər və sinif jurnalları' }}
+          </p>
+          <div class="mt-3 flex items-center gap-2">
+            <button @click="openChangePasswordModal" class="touch-btn px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-xs font-bold border border-white/20 flex items-center gap-1.5 shadow-sm">
+              <span>🔑</span>
+              <span>{{ currentUser.role === 'admin' ? 'Admin Şifrəmi Dəyiş' : 'Direktor Şifrəmi Dəyiş' }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- School Filter for Admin -->
+        <div v-if="currentUser.role === 'admin'" class="bg-white/10 p-2 rounded-2xl backdrop-blur-md">
+          <label class="block text-[11px] font-bold text-purple-200 mb-1">Məktəb Seçimi (Filtr):</label>
+          <select v-model="selectedAdminSchoolId" @change="onAdminSchoolFilterChange" 
+                  class="bg-slate-900 text-white border border-purple-400/30 rounded-xl px-3 py-1.5 text-xs font-medium focus:ring-2 focus:ring-purple-400">
+            <option :value="null">Bütün Respublika (Hamısı)</option>
+            <option v-for="s in popularSchools" :key="s.id" :value="s.id">{{ s.name }} ({{ s.region }})</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Overview Stats -->
+      <div class="grid grid-cols-2 sm:grid-cols-5 gap-4">
+        <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+          <p class="text-xs font-medium text-slate-500">Müəllimlər</p>
+          <p class="text-3xl font-black text-violet-600 mt-1">{{ adminOverview.teachers_count }}</p>
+        </div>
+        <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+          <p class="text-xs font-medium text-slate-500">Şagirdlər</p>
+          <p class="text-3xl font-black text-sky-600 mt-1">{{ adminOverview.students_count }}</p>
+        </div>
+        <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+          <p class="text-xs font-medium text-slate-500">Siniflər</p>
+          <p class="text-3xl font-black text-brand-600 mt-1">{{ adminOverview.classes_count }}</p>
+        </div>
+        <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm">
+          <p class="text-xs font-medium text-slate-500">Təsdiq Gözləyən</p>
+          <p class="text-3xl font-black text-amber-600 mt-1">{{ adminOverview.pending_count }}</p>
+        </div>
+        <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm cursor-pointer hover:border-amber-400 transition-colors" @click="adminTab = 'password_resets'">
+          <p class="text-xs font-medium text-slate-500">Şifrə Sorğuları</p>
+          <p class="text-3xl font-black text-amber-600 mt-1">{{ adminOverview.reset_requests_count || 0 }}</p>
+        </div>
+      </div>
+
+      <!-- Admin Tabs -->
+      <div class="flex border-b border-slate-200 gap-2 overflow-x-auto">
+        <button @click="adminTab = 'pending'" 
+                :class="adminTab === 'pending' ? 'border-amber-500 text-amber-700 font-black bg-amber-50/50' : 'border-transparent text-slate-500'" 
+                class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap flex items-center gap-2">
+          <span>🔔 Təsdiq Gözləyənlər</span>
+          <span v-if="adminPendingRequests.length > 0" class="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-black animate-pulse">
+            {{ adminPendingRequests.length }}
+          </span>
+        </button>
+        <button @click="adminTab = 'password_resets'" 
+                :class="adminTab === 'password_resets' ? 'border-amber-600 text-amber-800 font-black bg-amber-50/50' : 'border-transparent text-slate-500'" 
+                class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap flex items-center gap-2">
+          <span>🔑 Şifrə Sorğuları</span>
+          <span v-if="adminPasswordResets.length > 0" class="px-2 py-0.5 rounded-full bg-amber-600 text-white text-[10px] font-black animate-pulse">
+            {{ adminPasswordResets.length }}
+          </span>
+        </button>
+        <button v-if="currentUser.role === 'admin'" @click="adminTab = 'schools'" 
+                :class="adminTab === 'schools' ? 'border-purple-600 text-purple-700 font-bold bg-white' : 'border-transparent text-slate-500'" 
+                class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap">
+          🏛️ Məktəblər və Köməkçilər
+        </button>
+        <button @click="adminTab = 'teachers'" 
+                :class="adminTab === 'teachers' ? 'border-purple-600 text-purple-700 font-bold bg-white' : 'border-transparent text-slate-500'" 
+                class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap">
+          👩‍🏫 Müəllimlər
+        </button>
+        <button @click="adminTab = 'students'" 
+                :class="adminTab === 'students' ? 'border-purple-600 text-purple-700 font-bold bg-white' : 'border-transparent text-slate-500'" 
+                class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap">
+          👦 Şagirdlər
+        </button>
+        <button @click="adminTab = 'classes'" 
+                :class="adminTab === 'classes' ? 'border-purple-600 text-purple-700 font-bold bg-white' : 'border-transparent text-slate-500'" 
+                class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap">
+          🏫 Siniflər və İndekslər
+        </button>
+      </div>
+
+      <!-- TAB 0: TƏSDİQ GÖZLƏYƏN MÜRACİƏTLƏR -->
+      <div v-if="adminTab === 'pending'" class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+            <span>🛡️</span> Qeydiyyatdan Keçənlərin Təsdiqi ({{ adminPendingRequests.length }})
+          </h3>
+          <p class="text-xs text-slate-500">Yalnız təsdiqlədiyiniz şəxslər sistemə daxil ola bilər.</p>
+        </div>
+
+        <div v-if="adminPendingRequests.length === 0" class="text-center py-12 bg-white rounded-3xl border border-dashed border-slate-300">
+          <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-2 text-xl">✅</div>
+          <p class="text-slate-700 font-bold text-sm">Hazırda təsdiq gözləyən yeni müraciət yoxdur.</p>
+        </div>
+
+        <div v-else class="space-y-3">
+          <div v-for="req in adminPendingRequests" :key="req.id" 
+               class="bg-white rounded-3xl p-5 border-2 border-amber-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider" 
+                      :class="req.role === 'teacher' ? 'bg-violet-100 text-violet-800' : 'bg-sky-100 text-sky-800'">
+                  {{ req.role === 'teacher' ? 'Müəllim Müraciəti' : 'Şagird Müraciəti' }}
+                </span>
+                <span class="text-xs font-bold text-brand-700 bg-brand-50 px-2 py-0.5 rounded border border-brand-200">
+                  📍 {{ req.school_name || 'Sumqayıt 31' }}
+                </span>
+              </div>
+              <h4 class="text-lg font-black text-slate-900">{{ req.full_name }}</h4>
+              <p class="text-xs text-slate-500">
+                İstifadəçi adı: <strong class="text-slate-800">@{{ req.username }}</strong>
+                <span v-if="req.subject">• Fənn: <strong class="text-violet-700">{{ req.subject }}</strong></span>
+                <span v-if="req.head_class_name">• Sinif Rəhbəri: <strong>{{ req.head_class_name }}</strong></span>
+              </p>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button @click="approveUser(req.id)" class="touch-btn px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md">
+                ✅ İcazə Ver (Təsdiqlə)
+              </button>
+              <button @click="rejectUser(req.id)" class="touch-btn px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-bold border border-rose-200">
+                ❌ Rədd Et
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: ŞİFRƏ BƏRPA SORĞULARI -->
+      <div v-if="adminTab === 'password_resets'" class="space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+              <span>🔑</span> Şifrə Bərpa Sorğuları ({{ adminPasswordResets.length }})
+            </h3>
+            <p class="text-xs text-slate-500">Parolunu unudan müəllim və şagirdlərin göndərdiyi müraciətlər</p>
+          </div>
+        </div>
+
+        <div v-if="adminPasswordResets.length === 0" class="text-center py-12 bg-white rounded-3xl border border-dashed border-slate-300">
+          <div class="w-12 h-12 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center mx-auto mb-2 text-xl">🛡️</div>
+          <p class="text-slate-700 font-bold text-sm">Hazırda şifrə bərpası üçün heç bir sorğu yoxdur.</p>
+        </div>
+
+        <div v-else class="space-y-3">
+          <div v-for="resetItem in adminPasswordResets" :key="resetItem.id" 
+               class="bg-white rounded-3xl p-5 border-2 border-amber-300 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider" 
+                      :class="resetItem.role === 'teacher' ? 'bg-violet-100 text-violet-800' : 'bg-sky-100 text-sky-800'">
+                  {{ resetItem.role === 'teacher' ? 'Müəllim' : 'Şagird' }}
+                </span>
+                <span class="text-xs font-bold text-brand-700 bg-brand-50 px-2 py-0.5 rounded border border-brand-200">
+                  📍 {{ resetItem.school_name }}
+                </span>
+              </div>
+              <h4 class="text-lg font-black text-slate-900">{{ resetItem.full_name }}</h4>
+              <p class="text-xs text-slate-500">
+                İstifadəçi adı: <strong class="text-slate-800">@{{ resetItem.username }}</strong>
+                <span v-if="resetItem.contact_phone" class="ml-2">• Əlaqə: <strong class="text-slate-800">{{ resetItem.contact_phone }}</strong></span>
+                <span class="ml-2 text-slate-400">({{ resetItem.created_at }})</span>
+              </p>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button @click="resolvePasswordReset(resetItem, '123456')" class="touch-btn px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-xl text-xs font-bold" title="Standart '123456' şifrəsi təyin edir">
+                ⚡ 123456 Təyin Et
+              </button>
+              <button @click="resolvePasswordReset(resetItem)" class="touch-btn px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-md">
+                🔑 Yeni Şifrə Təyin Et
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 1: MƏKTƏBLƏR VƏ KÖMƏKÇİLƏR (NƏZARƏTÇİLƏR) -->
+      <div v-if="adminTab === 'schools' && currentUser.role === 'admin'" class="space-y-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 class="text-base font-black text-slate-900">🏛️ Məktəblər və Köməkçilər (Nəzarətçilər)</h3>
+            <p class="text-xs text-slate-500">Hər məktəb üçün bir neçə nəfərə köməkçi (nəzarətçi) vəzifəsi verə bilərsiniz.</p>
+          </div>
+          <!-- Region Filter -->
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-bold text-slate-600">Bölgə:</label>
+            <select v-model="selectedRegionFilter" @change="loadAdminSchoolsSummary" class="bg-white border border-slate-300 rounded-xl px-3 py-1.5 text-xs font-semibold">
+              <option value="">Bütün Bölgələr</option>
+              <option v-for="r in allRegions" :key="r" :value="r">{{ r }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="border-b border-slate-200 text-slate-400 uppercase font-bold text-[11px] bg-slate-50/50">
+                <th class="py-3 px-4">Məktəb Adı</th>
+                <th class="py-3 px-4">Bölgə</th>
+                <th class="py-3 px-4">Məktəb Direktoru</th>
+                <th class="py-3 px-4">Müəllimlər</th>
+                <th class="py-3 px-4">Şagirdlər</th>
+                <th class="py-3 px-4">Təyin Edilmiş Nəzarətçilər (Köməkçilər)</th>
+                <th class="py-3 px-4 text-right">Köməkçi Təyinatı</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr v-for="s in adminSchoolsSummary" :key="s.id" class="hover:bg-slate-50">
+                <td class="py-3 px-4 font-bold text-slate-900">
+                  {{ s.name }}
+                  <span v-if="s.id === 1" class="ml-1 text-[10px] bg-brand-100 text-brand-800 px-2 py-0.5 rounded-full font-bold">Əsas Məktəb</span>
+                </td>
+                <td class="py-3 px-4 font-semibold text-slate-600">{{ s.region }}</td>
+                <td class="py-3 px-4">
+                  <span v-if="s.director_name" class="font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-xl text-xs flex items-center gap-1 w-max">
+                    <span>🏛️</span>
+                    <span>{{ s.director_name }}</span>
+                  </span>
+                  <span v-else class="text-slate-400 text-xs italic">Təyin olunmayıb</span>
+                </td>
+                <td class="py-3 px-4 font-bold text-violet-700">{{ s.teacher_count }} nəfər</td>
+                <td class="py-3 px-4 font-bold text-sky-700">{{ s.student_count }} nəfər</td>
+                <td class="py-3 px-4">
+                  <span v-if="s.moderators" class="font-bold text-amber-800 bg-amber-100/80 px-2.5 py-1 rounded-xl text-xs">
+                    🛡️ {{ s.moderators }}
+                  </span>
+                  <span v-else class="text-slate-400 text-xs italic">Hələ köməkçi təyin olunmayıb</span>
+                </td>
+                <td class="py-3 px-4 text-right">
+                  <button @click="openAssignModeratorModal(s)" class="touch-btn px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-sm">
+                    + Köməkçi Təyin Et
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 2: MÜƏLLİMLƏR -->
+      <div v-if="adminTab === 'teachers'" class="space-y-5">
+        <div class="flex items-center justify-between">
+          <h3 class="text-base font-bold text-slate-900">Müəllimlər Siyahısı ({{ adminTeachers.length }})</h3>
+        </div>
+
+        <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="border-b border-slate-200 text-slate-400 uppercase font-bold text-[11px] bg-slate-50/50">
+                <th class="py-3 px-4">Müəllim</th>
+                <th class="py-3 px-4">Məktəb</th>
+                <th class="py-3 px-4">Fənn</th>
+                <th class="py-3 px-4">Vəzifə</th>
+                <th class="py-3 px-4 text-right">Əməliyyatlar</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr v-for="t in adminTeachers" :key="t.id" class="hover:bg-slate-50">
+                <td class="py-3 px-4 font-bold text-slate-900">{{ t.full_name }} (@{{ t.username }})</td>
+                <td class="py-3 px-4 font-medium text-slate-600">{{ t.school_name || 'Sumqayıt 31' }}</td>
+                <td class="py-3 px-4 font-semibold text-purple-700">{{ t.subject || '—' }}</td>
+                <td class="py-3 px-4">
+                  <span v-if="t.is_moderator" class="px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 text-[10px]">
+                    🛡️ Məktəb Nəzarətçisi
+                  </span>
+                  <span v-else class="text-slate-400">Müəllim</span>
+                </td>
+                <td class="py-3 px-4 text-right space-x-2">
+                  <button @click="adminResetTeacherPass(t)" class="touch-btn text-xs font-bold text-blue-600 hover:underline">Şifrə Dəyiş</button>
+                  <button @click="adminDeleteTeacher(t)" class="touch-btn text-xs font-bold text-rose-600 hover:underline">Sil</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 3: ŞAGİRD VƏ VALİDEYN İDARƏSİ -->
+      <div v-if="adminTab === 'students'" class="space-y-5">
+        <h3 class="text-base font-bold text-slate-900">Qeydiyyatdan Keçmiş Şagirdlər ({{ adminStudents.length }})</h3>
+        <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="border-b border-slate-200 text-slate-400 uppercase font-bold text-[11px] bg-slate-50/50">
+                <th class="py-3 px-4">Şagird Adı</th>
+                <th class="py-3 px-4">Məktəb</th>
+                <th class="py-3 px-4">Sinif</th>
+                <th class="py-3 px-4">Sinif Təyin Et</th>
+                <th class="py-3 px-4 text-right">Əməliyyatlar</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr v-for="s in adminStudents" :key="s.id" class="hover:bg-slate-50">
+                <td class="py-3 px-4 font-bold text-slate-900">{{ s.full_name }} (@{{ s.username }})</td>
+                <td class="py-3 px-4 text-slate-600">{{ s.school_name || 'Sumqayıt 31' }}</td>
+                <td class="py-3 px-4">
+                  <span v-if="s.class_name" class="px-2.5 py-1 rounded-xl font-bold bg-sky-100 text-sky-800 text-xs">{{ s.class_name }}</span>
+                  <span v-else class="text-amber-600 bg-amber-50 px-2 py-0.5 rounded text-[11px]">Təyin edilməyib</span>
+                </td>
+                <td class="py-3 px-4">
+                  <select @change="adminChangeStudentClass(s.id, $event.target.value)" :value="s.class_id || ''" 
+                          class="bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-semibold">
+                    <option value="">Sinif seçin...</option>
+                    <option v-for="c in allClasses" :key="c.id" :value="c.id">{{ c.name }} Sinfi</option>
+                  </select>
+                </td>
+                <td class="py-3 px-4 text-right space-x-2">
+                  <button @click="adminResetStudentPass(s)" class="touch-btn text-xs font-bold text-blue-600 hover:underline">Şifrə Sıfırla</button>
+                  <button @click="adminDeleteStudent(s)" class="touch-btn text-xs font-bold text-rose-600 hover:underline">Sil</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 4: SİNİFLƏRİN VƏ İNDEKSLƏRİN İDARƏ EDİLMƏSİ (ARTIR / AZALT) -->
+      <div v-if="adminTab === 'classes'" class="space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 class="text-base font-black text-slate-900">🏫 Siniflər və İndekslərin İdarəsi (Cəmi {{ allClasses.length }} sinif)</h3>
+            <p class="text-xs text-slate-500">
+              {{ currentUser.role === 'director' ? currentUser.school_name + ' üzrə siniflər və indekslər' : 'Sinifləri artırın, azaldın və ya növbəti tədris ilinə keçirin.' }}
+            </p>
+          </div>
+        </div>
+
+        <!-- Avtomatik Sinif Artırma (Növbəti Tədris İlinə Keçid) Banneri -->
+        <div class="bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-800 rounded-3xl p-5 text-white shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div class="space-y-1">
+            <div class="inline-flex items-center gap-1.5 bg-white/20 px-2.5 py-0.5 rounded-full text-[11px] font-bold">
+              <span>⚡ Avtomatik Keçid</span>
+            </div>
+            <h4 class="text-base font-black">Növbəti Tədris İlinə Keçid (Sinifləri 1 İl Artır)</h4>
+            <p class="text-xs text-blue-100 leading-relaxed max-w-xl">
+              Məktəbdəki bütün siniflər avtomatik növbəti sinfə yüksəlir (məs. <strong>1A ➔ 2A, 5B ➔ 6B</strong>). İndekslər eyni qalır. Şagirdlər avtomatik yeni sinfə keçir və 11-ci siniflər məzun olur!
+            </p>
+          </div>
+          <button @click="promoteAllClassesInSchool" 
+                  class="touch-btn px-5 py-3 bg-white hover:bg-blue-50 text-brand-800 font-black rounded-2xl text-xs shadow-xl shrink-0 flex items-center gap-2">
+            <span>🔄 Bütün Sinifləri 1 İl Artır</span>
+          </button>
+        </div>
+
+        <div class="space-y-4">
+          <div v-for="gr in [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]" :key="gr" 
+               class="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="w-36 shrink-0">
+              <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Pillə</span>
+              <span class="text-xl font-black text-slate-900">
+                {{ gr === 0 ? '0-cı Sinif (Hazırlıq)' : gr + '-ci Siniflər' }}
+              </span>
+            </div>
+
+            <div class="flex-1 flex flex-wrap items-center gap-2">
+              <div v-if="getClassesByGrade(gr).length === 0" class="text-xs text-slate-400 italic">
+                Bu pillədə hələ sinif yoxdur.
+              </div>
+              <div v-for="c in getClassesByGrade(gr)" :key="c.id" 
+                   class="inline-flex items-center gap-2 bg-white hover:bg-brand-50 border-2 border-slate-200 hover:border-brand-400 rounded-2xl py-1.5 px-3 transition-all shadow-sm group">
+                <span class="text-base font-black text-brand-700">{{ c.name }}</span>
+                <span class="text-[10px] font-semibold text-slate-500">({{ c.student_count }} şagird)</span>
+                
+                <!-- 1 Sinif Artır (İndeks eyni qalır) -->
+                <button @click="promoteSingleClass(c)" title="Bu sinfi 1 pillə artır (məs. 5B ➔ 6B)" 
+                        class="px-2 py-0.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-[11px] font-black flex items-center gap-0.5 transition-colors">
+                  <span>⬆ +1 İl</span>
+                </button>
+
+                <!-- Sinfi Sil (Azalt) -->
+                <button @click="adminDeleteClass(c)" title="Bu sinfi sil (azalt)" 
+                        class="w-5 h-5 rounded-full bg-slate-100 hover:bg-rose-500 hover:text-white flex items-center justify-center text-xs font-bold text-slate-500 transition-colors ml-1">
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <div class="shrink-0 flex items-center gap-2">
+              <button @click="adminQuickAddIndex(gr)" 
+                      class="touch-btn px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm">
+                <span>➕ İndeks Artır</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+
+    <!-- ==================== VIEW 3: ŞAGİRD PORTALI ==================== -->
+    <div v-if="currentView === 'student' && currentUser" class="space-y-6">
+      <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-sky-500"></span>
+            <span class="text-xs font-bold uppercase tracking-wider text-sky-600">Şagird Portalı (Yalnız Baxış)</span>
+          </div>
+          <h2 class="text-2xl font-black text-slate-900 mt-1">{{ currentUser.full_name }}</h2>
+          <p class="text-xs text-slate-500 mt-0.5">
+            Məktəb: <strong class="text-slate-800">{{ currentUser.school_name }}</strong> 
+            <span v-if="studentDashboard && studentDashboard.enrolled">• Sinif: <strong class="text-slate-800">{{ studentDashboard.class_name }}</strong></span>
+          </p>
+        </div>
+      </div>
+
+      <div v-if="studentDashboard && !studentDashboard.enrolled" class="bg-white rounded-3xl p-8 border border-dashed border-amber-300 text-center space-y-3">
+        <div class="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto text-2xl">⏳</div>
+        <h3 class="text-lg font-bold text-slate-900">Siz hələ heç bir sinfə əlavə edilməmisiniz</h3>
+        <p class="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+          Qeydiyyatınız uğurla tamamlanıb. Müəlliminiz sizi sinfə əlavə etdikdən sonra ev tapşırıqlarınız və KSQ ballarınız burada görünəcək.
+        </p>
+      </div>
+
+      <div v-else-if="studentDashboard && studentDashboard.enrolled" class="space-y-5">
+        <div class="flex border-b border-slate-200 gap-2 overflow-x-auto">
+          <button @click="studentTab = 'homework'" :class="studentTab === 'homework' ? 'border-sky-600 text-sky-600 font-bold bg-white' : 'border-transparent text-slate-500'" class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap">
+            📚 Ev Tapşırıqları və Mövzular
+          </button>
+          <button @click="studentTab = 'grades'" :class="studentTab === 'grades' ? 'border-sky-600 text-sky-600 font-bold bg-white' : 'border-transparent text-slate-500'" class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap">
+            ⭐ Mənim Qiymətlərim (KSQ / BSQ)
+          </button>
+          <button @click="studentTab = 'attendance'" :class="studentTab === 'attendance' ? 'border-sky-600 text-sky-600 font-bold bg-white' : 'border-transparent text-slate-500'" class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap">
+            ✅ Davamiyyətim
+          </button>
+        </div>
+
+        <div v-if="studentTab === 'homework'" class="space-y-3">
+          <div v-if="studentDashboard.lessons.length === 0" class="text-center py-10 bg-white rounded-3xl text-slate-400 text-xs">Hələlik ev tapşırığı qeyd olunmayıb.</div>
+          <div v-for="l in studentDashboard.lessons" :key="l.id" class="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-sky-700 bg-sky-50 px-2.5 py-1 rounded-lg border border-sky-100">{{ l.subject }}</span>
+              <span class="text-slate-400 font-medium">📅 {{ l.date }}</span>
+            </div>
+            <h4 class="text-base font-bold text-slate-900">{{ l.topic }}</h4>
+            <div v-if="l.homework" class="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200/70 text-xs">
+              <p class="font-bold text-amber-900 mb-0.5">📌 Ev Tapşırığı:</p>
+              <p class="text-slate-700 whitespace-pre-line">{{ l.homework }}</p>
+            </div>
+            <p class="text-[11px] text-slate-400">Müəllim: {{ l.teacher_name }}</p>
+          </div>
+        </div>
+
+        <div v-if="studentTab === 'grades'" class="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-4">
+          <h3 class="font-bold text-slate-900 text-sm">Müəllimlərin Sizə Qoyduğu Qiymətlər</h3>
+          <div v-if="studentDashboard.grades.length === 0" class="text-center py-8 text-slate-400 text-xs">Hələ qiymət daxil edilməyib.</div>
+          <div v-else class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead>
+                <tr class="border-b border-slate-200 text-slate-400 uppercase font-bold text-[11px]">
+                  <th class="py-2.5 px-3">Tarix</th>
+                  <th class="py-2.5 px-3">Fənn</th>
+                  <th class="py-2.5 px-3">Növ</th>
+                  <th class="py-2.5 px-3">Bal</th>
+                  <th class="py-2.5 px-3">Müəllim</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr v-for="g in studentDashboard.grades" :key="g.id">
+                  <td class="py-2.5 px-3 text-slate-400">{{ g.date }}</td>
+                  <td class="py-2.5 px-3 font-semibold text-slate-800">{{ g.subject }}</td>
+                  <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded-full font-bold uppercase text-[10px] bg-amber-100 text-amber-800">{{ g.grade_type }}</span></td>
+                  <td class="py-2.5 px-3 font-black text-sm text-slate-900">{{ g.score }}</td>
+                  <td class="py-2.5 px-3 text-slate-500">{{ g.teacher_name }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div v-if="studentTab === 'attendance'" class="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-4">
+          <h3 class="font-bold text-slate-900 text-sm">Davamiyyət Qeydləriniz</h3>
+          <div v-if="studentDashboard.attendance.length === 0" class="text-center py-8 text-slate-400 text-xs">Hələ qeyd yoxdur.</div>
+          <div v-else class="divide-y divide-slate-100 text-xs">
+            <div v-for="(a, idx) in studentDashboard.attendance" :key="idx" class="py-2.5 flex items-center justify-between">
+              <div><span class="font-bold text-slate-800">{{ a.date }}</span> • {{ a.subject }}</div>
+              <span class="px-2.5 py-1 rounded-full font-bold text-[11px]" :class="a.status === 'present' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'">
+                {{ a.status === 'present' ? 'İştirak etdi' : 'Qaib (Q/B)' }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ==================== VIEW 4: MÜƏLLİM KABİNETİ ==================== -->
+    <div v-if="currentView === 'teacher' && currentUser && currentUser.role === 'teacher'" class="space-y-6">
+      
+      <div class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="text-xs font-bold uppercase tracking-wider text-emerald-600">Müəllim Kabineti</span>
+            <span class="text-xs text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full font-medium">📍 {{ currentUser.school_name }}</span>
+          </div>
+          <h2 class="text-2xl font-black text-slate-900 mt-1">{{ currentUser.full_name }}</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Fənn: <strong class="text-slate-800">{{ currentUser.subject }}</strong></p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button @click="openChangePasswordModal" class="touch-btn px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold border border-slate-300 flex items-center gap-1.5 shadow-sm">
+            <span>🔑</span>
+            <span>Şifrəmi Dəyiş</span>
+          </button>
+          <button v-if="activeTeacherClass" @click="activeTeacherClass = null" class="touch-btn px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">⬅ Siniflərə Qayıt</button>
+          <button @click="showAssignModal = true" class="touch-btn px-3 py-2 rounded-xl bg-brand-50 text-brand-700 text-xs font-bold border border-brand-200">⚙️ Siniflərimi Tənzimlə</button>
+        </div>
+      </div>
+
+      <div v-if="!activeTeacherClass" class="space-y-6">
+        <!-- 1. Sinif Rəhbəri Olduğu Sinif -->
+        <div class="space-y-3">
+          <h3 class="text-base font-black text-slate-900 flex items-center gap-2"><span class="text-amber-500">⭐</span> 1. Sinif Rəhbəri Olduğunuz Sinif</h3>
+          <div v-if="teacherDashboard && teacherDashboard.teacher.head_class_name" 
+               @click="openTeacherClass({ class_id: teacherDashboard.teacher.class_head_id, class_name: teacherDashboard.teacher.head_class_name, is_head: true })" 
+               class="touch-btn cursor-pointer bg-gradient-to-r from-amber-50 via-white to-amber-50/40 border-2 border-amber-300 hover:border-amber-500 rounded-3xl p-6 shadow-sm group">
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="text-xs font-bold uppercase text-amber-800 bg-amber-200/60 px-2.5 py-0.5 rounded-full">Rəhbərlik Etdiyiniz Sinif</span>
+                <h4 class="text-3xl font-black text-slate-900 mt-2">{{ teacherDashboard.teacher.head_class_name }} Sinfi</h4>
+                <p class="text-xs text-slate-500 mt-1">Şagird sayı: <strong class="text-slate-800">{{ teacherDashboard.teacher.head_class_student_count }} nəfər</strong></p>
+              </div>
+              <span class="touch-btn px-4 py-2 rounded-xl bg-amber-500 group-hover:bg-amber-600 text-white font-bold text-xs shadow-md">Sinifə Giriş və Uşaq Əlavə Et ➔</span>
+            </div>
+          </div>
+          <div v-else class="p-6 rounded-3xl bg-white border border-dashed border-slate-300 text-center">
+            <p class="text-xs text-slate-500">Siz hələ heç bir sinifə Sinif Rəhbəri təyin olunmamısınız.</p>
+            <button @click="showAssignModal = true" class="text-xs font-bold text-brand-600 hover:underline">+ Seçmək üçün klikləyin</button>
+          </div>
+        </div>
+
+        <!-- 2. Dərs Keçdiyi Siniflər -->
+        <div class="space-y-3 pt-2">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-black text-slate-900 flex items-center gap-2"><span>📖</span> 2. Dərs Keçdiyiniz Siniflər</h3>
+            <button @click="showAssignModal = true" class="text-xs font-bold text-brand-600 hover:underline">+ Tənzimlə</button>
+          </div>
+          <div v-if="!teacherDashboard || teacherDashboard.teaching_classes.length === 0" class="p-6 rounded-3xl bg-white border border-dashed border-slate-300 text-center text-xs text-slate-500">
+            Dərs dediyiniz siniflər siyahısı boşdur.
+          </div>
+          <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div v-for="c in teacherDashboard.teaching_classes" :key="c.assignment_id" @click="openTeacherClass(c)" 
+                 class="touch-btn cursor-pointer bg-white rounded-3xl p-5 border-2 border-slate-200 hover:border-brand-500 hover:shadow-lg transition-all group">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-2xl font-black text-brand-700">{{ c.class_name }}</span>
+                <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 border border-brand-200">{{ c.subject }}</span>
+              </div>
+              <p class="text-xs text-slate-500 mb-3">Şagird sayı: <strong class="text-slate-800">{{ c.student_count }}</strong></p>
+              <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-xs font-bold text-brand-600"><span>Jurnala Giriş</span> ➔</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active Class Journal -->
+      <div v-else class="space-y-5">
+        <div class="bg-brand-50 border border-brand-200 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <span class="w-12 h-12 rounded-2xl bg-brand-600 text-white font-black flex items-center justify-center text-xl">{{ activeTeacherClass.class_name }}</span>
+            <div>
+              <h3 class="font-bold text-slate-900 text-base">{{ activeTeacherClass.class_name }} Sinif Jurnalı</h3>
+              <p class="text-xs text-brand-700">Fənn: <strong>{{ activeTeacherClass.subject || currentUser.subject }}</strong> • {{ classStudents.length }} şagird</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-semibold text-slate-600">Tarix:</label>
+            <input type="date" v-model="journalDate" @change="onJournalDateChange" class="bg-white border border-slate-300 text-slate-800 text-xs rounded-xl px-3 py-1.5 font-medium">
+          </div>
+        </div>
+
+        <div class="flex border-b border-slate-200 gap-2 overflow-x-auto">
+          <button @click="classTab = 'students'" :class="classTab === 'students' ? 'border-brand-600 text-brand-600 font-bold bg-white' : 'border-transparent text-slate-500'" class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap">
+            👥 Şagirdlər (Uşaq Əlavə Et)
+          </button>
+          <button @click="classTab = 'attendance'" :class="classTab === 'attendance' ? 'border-brand-600 text-brand-600 font-bold bg-white' : 'border-transparent text-slate-500'" class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap">
+            ✅ Davamiyyət
+          </button>
+          <button @click="classTab = 'grades'" :class="classTab === 'grades' ? 'border-brand-600 text-brand-600 font-bold bg-white' : 'border-transparent text-slate-500'" class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap">
+            ⭐ KSQ və Qiymətlər
+          </button>
+          <button @click="classTab = 'topics'" :class="classTab === 'topics' ? 'border-brand-600 text-brand-600 font-bold bg-white' : 'border-transparent text-slate-500'" class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap">
+            📝 Mövzu və Ev Tapşırığı
+          </button>
+        </div>
+
+        <!-- Class Tab: Students -->
+        <div v-if="classTab === 'students'" class="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-5">
+          <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+            <h4 class="font-bold text-slate-900 text-sm">➕ Bu Sinifə Uşaq (Şagird) Əlavə Et</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="space-y-1.5">
+                <label class="block text-xs font-semibold text-slate-600">Qeydiyyatdan keçmiş şagirdlərdən seç:</label>
+                <div class="flex gap-2">
+                  <select v-model="selectedStudentToAdd" class="bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs flex-1">
+                    <option value="">Şagird seçin...</option>
+                    <option v-for="s in unassignedStudents" :key="s.id" :value="s.id">{{ s.full_name }} (@{{ s.username }})</option>
+                  </select>
+                  <button @click="addExistingStudent" class="touch-btn px-4 py-2 bg-brand-600 text-white rounded-xl text-xs font-bold">Əlavə Et</button>
+                </div>
+              </div>
+              <div class="space-y-1.5">
+                <label class="block text-xs font-semibold text-slate-600">Və ya birbaşa ad, soyad yazaraq əlavə et:</label>
+                <div class="flex gap-2">
+                  <input type="text" v-model="directStudentName" placeholder="Məs. Əliyev Murad" class="bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs flex-1">
+                  <button @click="addDirectStudent" class="touch-btn px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold">Əlavə Et</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 class="font-bold text-slate-900 text-sm mb-3">Sinifdəki Şagirdlər Siyahısı ({{ classStudents.length }} nəfər)</h4>
+            <div v-if="classStudents.length === 0" class="text-center py-6 text-slate-400 text-xs">Sinifdə şagird yoxdur.</div>
+            <div v-else class="divide-y divide-slate-100">
+              <div v-for="(student, idx) in classStudents" :key="student.id" class="py-3 px-3 flex items-center justify-between hover:bg-slate-50 rounded-xl">
+                <div class="flex items-center gap-3">
+                  <span class="text-xs font-bold text-slate-400 w-5">{{ idx + 1 }}.</span>
+                  <div>
+                    <p class="text-sm font-bold text-slate-800">{{ student.full_name }}</p>
+                    <p class="text-[11px] text-slate-400">Login: @{{ student.username }}</p>
+                  </div>
+                </div>
+                <button @click="removeStudent(student.id)" class="text-xs text-rose-500 hover:text-rose-700 font-semibold p-1">Sinifdən çıxar ✕</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Class Tab: Attendance -->
+        <div v-if="classTab === 'attendance'" class="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h4 class="font-bold text-slate-900 text-sm">Gündəlik Davamiyyət</h4>
+              <p class="text-xs text-slate-500">Tarix: {{ journalDate }}</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button @click="markAllAttendance('present')" class="text-xs px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-xl font-semibold border border-emerald-200">Hamı İştirak Edir</button>
+              <button @click="saveAttendance" :disabled="isSaving" class="touch-btn px-4 py-1.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-md">
+                {{ isSaving ? 'Yadda saxlanılır...' : '💾 Yadda Saxla' }}
+              </button>
+            </div>
+          </div>
+          <div class="divide-y divide-slate-100">
+            <div v-for="(student, idx) in classStudents" :key="student.id" class="py-2.5 flex items-center justify-between gap-2 px-2 hover:bg-slate-50 rounded-xl">
+              <div class="flex items-center gap-3">
+                <span class="text-xs font-bold text-slate-400 w-5">{{ idx + 1 }}.</span>
+                <span class="text-sm font-semibold text-slate-800">{{ student.full_name }}</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <button @click="attendanceMap[student.id] = 'present'" :class="attendanceMap[student.id] === 'present' ? 'bg-emerald-600 text-white shadow' : 'bg-slate-100 text-slate-600'" class="touch-btn px-2.5 py-1.5 rounded-lg text-xs font-bold">Q</button>
+                <button @click="attendanceMap[student.id] = 'absent'" :class="attendanceMap[student.id] === 'absent' ? 'bg-rose-600 text-white shadow' : 'bg-slate-100 text-slate-600'" class="touch-btn px-2.5 py-1.5 rounded-lg text-xs font-bold">Q/B</button>
+                <button @click="attendanceMap[student.id] = 'excused'" :class="attendanceMap[student.id] === 'excused' ? 'bg-amber-500 text-white shadow' : 'bg-slate-100 text-slate-600'" class="touch-btn px-2.5 py-1.5 rounded-lg text-xs font-bold">S</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Class Tab: Grades -->
+        <div v-if="classTab === 'grades'" class="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-6">
+          <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+            <h4 class="font-bold text-slate-900 text-sm">KSQ / Qiymət Daxil Et</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Şagird</label>
+                <select v-model="newGrade.student_id" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs">
+                  <option value="">Şagird seçin...</option>
+                  <option v-for="s in classStudents" :key="s.id" :value="s.id">{{ s.full_name }}</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Növ</label>
+                <select v-model="newGrade.grade_type" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs">
+                  <option value="ksq1">KSQ-1</option>
+                  <option value="ksq2">KSQ-2</option>
+                  <option value="ksq3">KSQ-3</option>
+                  <option value="bsq">BSQ</option>
+                  <option value="formativ">Formativ</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Bal</label>
+                <input type="text" v-model="newGrade.score" placeholder="Məs. 85" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-bold">
+              </div>
+              <div class="flex items-end">
+                <button @click="saveSingleGrade" class="w-full touch-btn px-4 py-2 bg-brand-600 text-white rounded-xl text-xs font-bold shadow-md">Yaz</button>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 class="font-bold text-slate-900 text-sm mb-3">Daxil Edilmiş Qiymətlər</h4>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead>
+                  <tr class="border-b border-slate-200 text-slate-400 font-bold uppercase text-[11px]">
+                    <th class="py-2 px-3">Tarix</th>
+                    <th class="py-2 px-3">Şagird</th>
+                    <th class="py-2 px-3">Növ</th>
+                    <th class="py-2 px-3">Bal</th>
+                    <th class="py-2 px-3 text-right">Sil</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  <tr v-for="g in classGrades" :key="g.id">
+                    <td class="py-2 px-3 text-slate-500">{{ g.date }}</td>
+                    <td class="py-2 px-3 font-semibold text-slate-800">{{ g.student_name }}</td>
+                    <td class="py-2 px-3 font-bold uppercase">{{ g.grade_type }}</td>
+                    <td class="py-2 px-3 font-black text-sm text-slate-900">{{ g.score }}</td>
+                    <td class="py-2 px-3 text-right">
+                      <button @click="deleteGrade(g.id)" class="text-rose-500 hover:text-rose-700 font-bold text-xs p-1">Sil</button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Class Tab: Topics -->
+        <div v-if="classTab === 'topics'" class="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-6">
+          <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+            <h4 class="font-bold text-slate-900 text-sm">Günün Mövzusu və Ev Tapşırığı</h4>
+            <input type="text" v-model="newLesson.topic" placeholder="Mövzunun adı" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium">
+            <textarea rows="3" v-model="newLesson.homework" placeholder="Şagirdlər üçün ev tapşırığı" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs"></textarea>
+            <div class="flex justify-end">
+              <button @click="saveLessonTopic" class="touch-btn px-5 py-2 bg-brand-600 text-white rounded-xl text-xs font-bold shadow-md">💾 Qeyd Et</button>
+            </div>
+          </div>
+          <div class="space-y-3">
+            <div v-for="l in classLessons" :key="l.id" class="p-4 rounded-2xl bg-white border border-slate-200 text-xs space-y-1">
+              <span class="text-slate-400">📅 {{ l.date }}</span>
+              <h5 class="font-bold text-slate-900 text-sm">{{ l.topic }}</h5>
+              <p v-if="l.homework" class="text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100"><strong>Ev tapşırığı:</strong> {{ l.homework }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ==================== MODAL: GİRİŞ / QEYDİYYAT (MƏKTƏB SEÇİMİ İLƏ) ==================== -->
+  <div v-if="showAuthModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-slate-100 relative max-h-[90vh] overflow-y-auto">
+      <button @click="showAuthModal = false" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+      
+      <div class="text-center mb-5">
+        <h3 class="text-xl font-black text-slate-900">
+          {{ authRole === 'admin' ? '🛡️ Super Admin Girişi' : (authRole === 'director' ? '🏛️ Məktəb Direktoru' : (authRole === 'student' ? '👦 Şagird' : '👩‍🏫 Müəllim')) }} {{ authAction === 'login' ? 'Girişi' : 'Qeydiyyatı' }}
+        </h3>
+        <p class="text-xs text-slate-500">
+          {{ authAction === 'login' ? 'Hesabınıza daxil olun' : 'Respublika məktəbləri üzrə qeydiyyat' }}
+        </p>
+      </div>
+
+      <div v-if="authRole !== 'admin'" class="flex border-b border-slate-200 mb-5">
+        <button @click="authAction = 'login'" :class="authAction === 'login' ? 'border-brand-600 text-brand-600 font-bold' : 'border-transparent text-slate-400'" class="flex-1 py-2 border-b-2 text-xs sm:text-sm text-center">Daxil Ol</button>
+        <button @click="authAction = 'register'" :class="authAction === 'register' ? 'border-brand-600 text-brand-600 font-bold' : 'border-transparent text-slate-400'" class="flex-1 py-2 border-b-2 text-xs sm:text-sm text-center">Qeydiyyat</button>
+      </div>
+
+      <!-- Login Form -->
+      <form v-if="authAction === 'login'" @submit.prevent="handleLogin" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">İstifadəçi Adı</label>
+          <input type="text" v-model="loginForm.username" required placeholder="İstifadəçi adınız" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm focus:ring-2 focus:ring-brand-500">
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <label class="block text-xs font-semibold text-slate-600">Şifrə</label>
+            <button type="button" @click="openForgotPasswordModal" class="text-xs text-brand-600 hover:text-brand-800 font-bold hover:underline">
+              Parolu unutdum?
+            </button>
+          </div>
+<div class="relative">
+            <input :type="showPasswordMap['login'] ? 'text' : 'password'" v-model="loginForm.password" required placeholder="Şifrəniz" 
+                   class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 pr-10 text-sm focus:ring-2 focus:ring-brand-500">
+            <button type="button" @click="togglePassword('login')" tabindex="-1" title="Şifrəni göstər / gizlə"
+                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-700 focus:outline-none">
+              <svg v-if="!showPasswordMap['login']" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              <svg v-else class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <button type="submit" :disabled="isSubmitting" class="touch-btn w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-2xl text-sm shadow-lg shadow-brand-500/25 transition-all">
+          {{ isSubmitting ? 'Yoxlanılır...' : 'Daxil Ol' }}
+        </button>
+      </form>
+
+      <!-- 1. Student Register Form with Cascading Region & Schools Directory -->
+      <form v-else-if="authRole === 'student'" @submit.prevent="handleStudentRegister" class="space-y-3">
+        <!-- 1. Step: Rayon / Şəhər Select -->
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">📍 1. Şəhər və ya Rayon Seçin</label>
+          <select v-model="registrationSelectedRegion" @change="onRegistrationRegionChange" required 
+                  class="w-full bg-sky-50/50 border border-sky-300 rounded-xl px-3 py-2 text-xs font-bold text-sky-900 focus:ring-2 focus:ring-sky-500">
+            <option value="">Şəhər və ya Rayon seçin (Respublika üzrə {{ allRegions.length }} rayon)...</option>
+            <option v-for="r in allRegions" :key="r" :value="r">{{ r }}</option>
+          </select>
+        </div>
+
+        <!-- 2. Step: Selected Region's Schools -->
+        <div v-if="registrationSelectedRegion">
+          <label class="block text-xs font-bold text-slate-700 mb-1">
+            🏫 2. Məktəbinizi Seçin ({{ registrationSelectedRegion }} üzrə {{ regionSchoolsList.length }} məktəb)
+          </label>
+          <input type="text" v-model="schoolSearchQuery" placeholder="Məktəb axtar (məs. 31)..." 
+                 class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs mb-1.5">
+          <select v-model="studentRegForm.school_id" required 
+                  class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-sky-500">
+            <option value="">Məktəb seçin...</option>
+            <option v-for="s in filteredRegionSchools" :key="s.id" :value="s.id">{{ s.name }}</option>
+          </select>
+        </div>
+        <div v-else class="p-2.5 bg-slate-50 border border-dashed border-slate-300 rounded-xl text-[11px] text-slate-500 text-center">
+          * Məktəblərin tam siyahısını görmək üçün əvvəlcə Şəhər/Rayon seçin
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Ad və Soyadınız</label>
+          <input type="text" v-model="studentRegForm.full_name" required placeholder="Məs. Əliyev Murad" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">İstifadəçi Adı</label>
+          <input type="text" v-model="studentRegForm.username" required placeholder="Məs. murad31" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Şifrə</label>
+<div class="relative">
+            <input :type="showPasswordMap['student_reg'] ? 'text' : 'password'" v-model="studentRegForm.password" required placeholder="Şifrənizi təyin edin" 
+                   class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 pr-10 text-xs focus:ring-2 focus:ring-brand-500">
+            <button type="button" @click="togglePassword('student_reg')" tabindex="-1" title="Şifrəni göstər / gizlə"
+                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-700 focus:outline-none">
+              <svg v-if="!showPasswordMap['student_reg']" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              <svg v-else class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <button type="submit" :disabled="isSubmitting" class="touch-btn w-full py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl text-xs shadow-md">
+          {{ isSubmitting ? 'Yaradılır...' : 'Şagird Hesabı Yarat' }}
+        </button>
+      </form>
+
+      <!-- 2. Director Register Form with Cascading Region & Schools Directory -->
+      <form v-else-if="authRole === 'director'" @submit.prevent="handleDirectorRegister" class="space-y-3">
+        <!-- 1. Step: Rayon / Şəhər Select -->
+        <div>
+          <label class="block text-xs font-bold text-emerald-900 mb-1">📍 1. Şəhər və ya Rayon Seçin</label>
+          <select v-model="registrationSelectedRegion" @change="onRegistrationRegionChange" required 
+                  class="w-full bg-emerald-50/50 border border-emerald-300 rounded-xl px-3 py-2 text-xs font-bold text-emerald-900 focus:ring-2 focus:ring-emerald-500">
+            <option value="">Şəhər və ya Rayon seçin ({{ allRegions.length }} rayon)...</option>
+            <option v-for="r in allRegions" :key="r" :value="r">{{ r }}</option>
+          </select>
+        </div>
+
+        <!-- 2. Step: Selected Region's Schools -->
+        <div v-if="registrationSelectedRegion">
+          <label class="block text-xs font-bold text-emerald-900 mb-1">
+            🏛️ 2. Rəhbəri Olduğunuz Məktəbi Seçin ({{ regionSchoolsList.length }} məktəb)
+          </label>
+          <input type="text" v-model="schoolSearchQuery" placeholder="Məktəb adı və ya nömrəsi ilə axtar..." 
+                 class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs mb-1.5">
+          <select v-model="directorRegForm.school_id" required 
+                  class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-emerald-500">
+            <option value="">Direktor olduğunuz məktəbi seçin...</option>
+            <option v-for="s in filteredRegionSchools" :key="s.id" :value="s.id">{{ s.name }}</option>
+          </select>
+        </div>
+        <div v-else class="p-2.5 bg-slate-50 border border-dashed border-slate-300 rounded-xl text-[11px] text-slate-500 text-center">
+          * Məktəbləri görmək üçün əvvəlcə yuxarıdan Şəhər/Rayon seçin
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Direktorun Adı və Soyadı</label>
+          <input type="text" v-model="directorRegForm.full_name" required placeholder="Məs. Əhmədov Rasim" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Əlaqə Telefonu</label>
+          <input type="text" v-model="directorRegForm.phone" placeholder="Məs. 050-123-45-67" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">İstifadəçi Adı</label>
+          <input type="text" v-model="directorRegForm.username" required placeholder="Məs. rasim_direktor" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Şifrə</label>
+<div class="relative">
+            <input :type="showPasswordMap['director_reg'] ? 'text' : 'password'" v-model="directorRegForm.password" required placeholder="Şifrənizi təyin edin" 
+                   class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 pr-10 text-xs focus:ring-2 focus:ring-brand-500">
+            <button type="button" @click="togglePassword('director_reg')" tabindex="-1" title="Şifrəni göstər / gizlə"
+                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-700 focus:outline-none">
+              <svg v-if="!showPasswordMap['director_reg']" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              <svg v-else class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <button type="submit" :disabled="isSubmitting" class="touch-btn w-full py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs shadow-md">
+          {{ isSubmitting ? 'Qeydiyyat aparılır...' : 'Məktəb Direktoru Hesabı Yarat 🏛️' }}
+        </button>
+      </form>
+
+      <!-- 3. Teacher Register Form with Cascading Region & Schools Directory -->
+      <form v-else @submit.prevent="handleTeacherRegister" class="space-y-3">
+        <!-- 1. Step: Rayon / Şəhər Select -->
+        <div>
+          <label class="block text-xs font-bold text-violet-900 mb-1">📍 1. Şəhər və ya Rayon Seçin</label>
+          <select v-model="registrationSelectedRegion" @change="onRegistrationRegionChange" required 
+                  class="w-full bg-violet-50/50 border border-violet-300 rounded-xl px-3 py-2 text-xs font-bold text-violet-900 focus:ring-2 focus:ring-violet-500">
+            <option value="">Şəhər və ya Rayon seçin ({{ allRegions.length }} rayon)...</option>
+            <option v-for="r in allRegions" :key="r" :value="r">{{ r }}</option>
+          </select>
+        </div>
+
+        <!-- 2. Step: Selected Region's Schools -->
+        <div v-if="registrationSelectedRegion">
+          <label class="block text-xs font-bold text-violet-900 mb-1">
+            🏫 2. Tədris Etdiyiniz Məktəbi Seçin ({{ regionSchoolsList.length }} məktəb)
+          </label>
+          <input type="text" v-model="schoolSearchQuery" placeholder="Məktəb axtar (məs. 31)..." 
+                 class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-1.5 text-xs mb-1.5">
+          <select v-model="teacherRegForm.school_id" required 
+                  class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-violet-500">
+            <option value="">Məktəb seçin...</option>
+            <option v-for="s in filteredRegionSchools" :key="s.id" :value="s.id">{{ s.name }}</option>
+          </select>
+        </div>
+        <div v-else class="p-2.5 bg-slate-50 border border-dashed border-slate-300 rounded-xl text-[11px] text-slate-500 text-center">
+          * Məktəbləri görmək üçün əvvəlcə yuxarıdan Şəhər/Rayon seçin
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Ad və Soyadınız</label>
+          <input type="text" v-model="teacherRegForm.full_name" required placeholder="Məs. Məmmədova Leyla" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Fənniniz</label>
+          <input type="text" v-model="teacherRegForm.subject" required placeholder="Məs. Riyaziyyat" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">İstifadəçi Adı</label>
+          <input type="text" v-model="teacherRegForm.username" required placeholder="Məs. leyla31" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Şifrə</label>
+<div class="relative">
+            <input :type="showPasswordMap['teacher_reg'] ? 'text' : 'password'" v-model="teacherRegForm.password" required placeholder="Şifrəniz" 
+                   class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 pr-10 text-xs focus:ring-2 focus:ring-brand-500">
+            <button type="button" @click="togglePassword('teacher_reg')" tabindex="-1" title="Şifrəni göstər / gizlə"
+                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-700 focus:outline-none">
+              <svg v-if="!showPasswordMap['teacher_reg']" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              <svg v-else class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <button type="submit" :disabled="isSubmitting" class="touch-btn w-full py-2.5 bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl text-xs shadow-md">
+          {{ isSubmitting ? 'Yaradılır...' : 'Müəllim Hesabı Yarat' }}
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Assign Moderator to School -->
+  <div v-if="showAssignModeratorModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-100">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="text-base font-black text-slate-900">Məktəbə Köməkçi (Nəzarətçi) Təyin Et</h3>
+          <p class="text-xs text-amber-700 font-bold mt-0.5">Məktəb: {{ targetSchoolForModerator.name }}</p>
+        </div>
+        <button @click="showAssignModeratorModal = false" class="text-slate-400 text-2xl font-bold">&times;</button>
+      </div>
+
+      <div class="space-y-3">
+        <label class="block text-xs font-semibold text-slate-600">Bu məktəbdən nəzarətçi təyin etmək istədiyiniz şəxsi seçin:</label>
+        <select v-model="selectedModeratorUserId" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2.5 text-xs font-semibold">
+          <option value="">İstifadəçi seçin...</option>
+          <option v-for="t in schoolPotentialModerators" :key="t.id" :value="t.id">
+            {{ t.full_name }} (@{{ t.username }} - {{ t.subject || 'Müəllim' }})
+          </option>
+        </select>
+        <p class="text-[11px] text-slate-400 leading-relaxed">
+          * Nəzarətçi təyin olunan şəxs öz hesabına daxil olanda yalnız öz məktəbinin müraciətlərini təsdiq edə və siniflərinə nəzarət edə biləcək.
+        </p>
+      </div>
+
+      <div class="pt-4 border-t border-slate-100 flex justify-end gap-2 mt-4">
+        <button @click="showAssignModeratorModal = false" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold">Ləğv et</button>
+        <button @click="confirmAssignModerator" class="touch-btn px-5 py-2 bg-amber-600 text-white rounded-xl text-xs font-bold shadow-md">
+          Nəzarətçi Təyin Et 🛡️
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Parolu Unutdum (Forgot Password) -->
+  <div v-if="showForgotPasswordModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-slate-100 relative">
+      <button @click="showForgotPasswordModal = false" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 text-2xl font-bold">&times;</button>
+
+      <div class="text-center mb-5">
+        <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-2 text-xl font-bold border border-amber-200">
+          🔑
+        </div>
+        <h3 class="text-lg font-black text-slate-900">Şifrəni Bərpa Et</h3>
+        <p class="text-xs text-slate-500 mt-0.5">Şifrənizi unutmusunuzsa, aşağıdakı seçimlərdən istifadə edin</p>
+      </div>
+
+      <!-- Segmented Control: Müəllim/Şagird vs Admin -->
+      <div class="flex bg-slate-100 p-1 rounded-2xl mb-4 text-xs font-bold">
+        <button type="button" @click="forgotTab = 'user'" 
+                :class="forgotTab === 'user' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'" 
+                class="flex-1 py-2 rounded-xl transition-all">
+          👨‍🏫 Müəllim / Şagird
+        </button>
+        <button type="button" @click="forgotTab = 'admin'" 
+                :class="forgotTab === 'admin' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-500'" 
+                class="flex-1 py-2 rounded-xl transition-all">
+          🛡️ Admin Bərpası
+        </button>
+      </div>
+
+      <!-- Form: Müəllim / Şagird Sorğusu -->
+      <form v-if="forgotTab === 'user'" @submit.prevent="handleForgotPasswordSubmit" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">İstifadəçi Adınız</label>
+          <input type="text" v-model="forgotUserForm.username" required placeholder="Məs. leyla31 və ya murad31" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:ring-2 focus:ring-brand-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Əlaqə Telefonunuz və ya Qeydiniz</label>
+          <input type="text" v-model="forgotUserForm.contact_phone" placeholder="Məs. 050-123-45-67" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:ring-2 focus:ring-brand-500">
+        </div>
+        <p class="text-[11px] text-slate-500 leading-relaxed bg-amber-50 p-2.5 rounded-xl border border-amber-200">
+          ℹ️ Müraciətiniz sistem admininə göndəriləcək və məktəb admini sizin üçün yeni şifrə təyin edəcək.
+        </p>
+        <button type="submit" :disabled="isSubmitting" class="touch-btn w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs shadow-md shadow-amber-500/20">
+          {{ isSubmitting ? 'Göndərilir...' : 'Sorğu Göndər' }}
+        </button>
+      </form>
+
+      <!-- Form: Admin Bərpa Açar Sözü -->
+      <form v-else @submit.prevent="handleAdminRecoverySubmit" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-purple-900 mb-1">Admin Bərpa Kodu (Master Key)</label>
+          <input type="password" v-model="forgotAdminForm.recovery_code" required placeholder="Bərpa açar sözünü daxil edin" class="w-full bg-purple-50/50 border border-purple-300 rounded-xl px-3.5 py-2.5 text-xs font-medium focus:ring-2 focus:ring-purple-500">
+          <p class="text-[10px] text-purple-600 mt-1">İpucu: Sistem yaradıcısının təyin etdiyi xüsusi bərpa açarı</p>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Yeni Admin Şifrəsi</label>
+<div class="relative">
+            <input :type="showPasswordMap['admin_rec_new'] ? 'text' : 'password'" v-model="forgotAdminForm.new_password" required placeholder="Yeni şifrəniz" 
+                   class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 pr-10 text-xs font-medium focus:ring-purple-500 focus:ring-2 focus:ring-brand-500">
+            <button type="button" @click="togglePassword('admin_rec_new')" tabindex="-1" title="Şifrəni göstər / gizlə"
+                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-700 focus:outline-none">
+              <svg v-if="!showPasswordMap['admin_rec_new']" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              <svg v-else class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Yeni Şifrənin Təkrarı</label>
+<div class="relative">
+            <input :type="showPasswordMap['admin_rec_conf'] ? 'text' : 'password'" v-model="forgotAdminForm.confirm_password" required placeholder="Yeni şifrəni təkrar yazın" 
+                   class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 pr-10 text-xs font-medium focus:ring-purple-500 focus:ring-2 focus:ring-brand-500">
+            <button type="button" @click="togglePassword('admin_rec_conf')" tabindex="-1" title="Şifrəni göstər / gizlə"
+                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-700 focus:outline-none">
+              <svg v-if="!showPasswordMap['admin_rec_conf']" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              <svg v-else class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <button type="submit" :disabled="isSubmitting" class="touch-btn w-full py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs shadow-md shadow-purple-500/20">
+          {{ isSubmitting ? 'Yenilənir...' : 'Admin Şifrəsini Yenilə 🛡️' }}
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Şəxsi Şifrəmi Dəyiş (Self-Change Password) -->
+  <div v-if="showChangePasswordModal && currentUser" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-slate-100 relative">
+      <button @click="showChangePasswordModal = false" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 text-2xl font-bold">&times;</button>
+
+      <div class="text-center mb-5">
+        <div class="w-12 h-12 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center mx-auto mb-2 text-xl font-bold border border-brand-200">
+          🔒
+        </div>
+        <h3 class="text-lg font-black text-slate-900">Şifrəni Dəyişdir</h3>
+        <p class="text-xs text-slate-500 mt-0.5">
+          İstifadəçi: <strong class="text-slate-800">{{ currentUser.full_name }}</strong> (@{{ currentUser.username }})
+        </p>
+      </div>
+
+      <form @submit.prevent="handleChangePasswordSubmit" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Cari (Köhnə) Şifrəniz</label>
+<div class="relative">
+            <input :type="showPasswordMap['chg_old'] ? 'text' : 'password'" v-model="changePasswordForm.old_password" required placeholder="Hazırkı şifrəniz" 
+                   class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 pr-10 text-xs font-medium focus:ring-2 focus:ring-brand-500">
+            <button type="button" @click="togglePassword('chg_old')" tabindex="-1" title="Şifrəni göstər / gizlə"
+                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-700 focus:outline-none">
+              <svg v-if="!showPasswordMap['chg_old']" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              <svg v-else class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Yeni Şifrəniz</label>
+<div class="relative">
+            <input :type="showPasswordMap['chg_new'] ? 'text' : 'password'" v-model="changePasswordForm.new_password" required placeholder="Yeni şifrəniz" 
+                   class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 pr-10 text-xs font-medium focus:ring-2 focus:ring-brand-500">
+            <button type="button" @click="togglePassword('chg_new')" tabindex="-1" title="Şifrəni göstər / gizlə"
+                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-700 focus:outline-none">
+              <svg v-if="!showPasswordMap['chg_new']" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              <svg v-else class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Yeni Şifrənin Təkrarı</label>
+<div class="relative">
+            <input :type="showPasswordMap['chg_conf'] ? 'text' : 'password'" v-model="changePasswordForm.confirm_password" required placeholder="Yeni şifrənizi təkrar yazın" 
+                   class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 pr-10 text-xs font-medium focus:ring-2 focus:ring-brand-500">
+            <button type="button" @click="togglePassword('chg_conf')" tabindex="-1" title="Şifrəni göstər / gizlə"
+                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-700 focus:outline-none">
+              <svg v-if="!showPasswordMap['chg_conf']" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              <svg v-else class="w-4 h-4 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="pt-2 flex gap-2">
+          <button type="button" @click="showChangePasswordModal = false" class="flex-1 py-2.5 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold">
+            Ləğv et
+          </button>
+          <button type="submit" :disabled="isSubmitting" class="touch-btn flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl text-xs shadow-md">
+            {{ isSubmitting ? 'Saxlanılır...' : 'Yadda Saxla' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Assign Classes for Teacher -->
+  <div v-if="showAssignModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-slate-100 max-h-[85vh] flex flex-col">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="text-lg font-black text-slate-900">Sinif Tənzimləmələri</h3>
+          <p class="text-xs text-slate-500">Sinif rəhbəri və dərs keçdiyiniz sinifləri qeyd edin</p>
+        </div>
+        <button @click="showAssignModal = false" class="text-slate-400 text-2xl font-bold">&times;</button>
+      </div>
+
+      <div class="overflow-y-auto flex-1 space-y-4 pr-1">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Fənniniz</label>
+          <input type="text" v-model="editAssignments.subject" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-amber-800 mb-1">⭐ Sinif Rəhbəri Olduğunuz Sinif</label>
+          <select v-model="editAssignments.class_head_id" class="w-full bg-amber-50/50 border border-amber-300 rounded-xl px-3 py-2 text-xs font-medium">
+            <option :value="null">Sinif rəhbəri deyiləm</option>
+            <option v-for="c in allClasses" :key="c.id" :value="c.id">{{ c.name }} Sinfi</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">📖 Dərs Keçdiyiniz Siniflər:</label>
+          <div class="grid grid-cols-3 sm:grid-cols-4 gap-2 pt-1">
+            <label v-for="c in allClasses" :key="c.id" 
+                   :class="editAssignments.teaching_class_ids.includes(c.id) ? 'bg-brand-50 border-brand-500 text-brand-700 font-black' : 'bg-slate-50 border-slate-200 text-slate-700'"
+                   class="cursor-pointer border rounded-xl p-2.5 text-center text-xs transition-colors flex items-center justify-center gap-1.5">
+              <input type="checkbox" :value="c.id" v-model="editAssignments.teaching_class_ids" class="hidden">
+              <span>{{ c.name }}</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-4 border-t border-slate-100 flex justify-end gap-2">
+        <button @click="showAssignModal = false" class="px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold">Ləğv et</button>
+        <button @click="saveTeacherAssignments" class="touch-btn px-5 py-2 bg-brand-600 text-white rounded-xl text-xs font-bold shadow-md">Yadda Saxla</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="bg-slate-900 text-slate-400 py-6 text-center text-xs mt-auto">
+    <div class="max-w-5xl mx-auto px-4 space-y-1">
+      <p class="text-white font-bold text-sm tracking-wide">E-məktəb</p>
+      <p>© {{ new Date().getFullYear() }} Bütün hüquqlar qorunur. Mirzəliyeva Əsma.</p>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+  const { createApp } = Vue;
+
+  createApp({
+    computed: {
+      filteredRegionSchools() {
+        if (!this.schoolSearchQuery.trim()) return this.regionSchoolsList;
+        const q = this.schoolSearchQuery.toLowerCase().trim();
+        return this.regionSchoolsList.filter(s => s.name.toLowerCase().includes(q));
+      }
+    },
+    data() {
+      return {
+        currentView: 'home', // 'home', 'student', 'teacher', 'admin'
+        currentUser: null,
+        installPrompt: null,
+
+        // Auth
+        showAuthModal: false,
+        authRole: 'student',
+        authAction: 'login',
+        isSubmitting: false,
+        isSaving: false,
+
+        loginForm: { username: '', password: '' },
+        studentRegForm: { full_name: '', username: '', password: '', school_id: '' },
+        teacherRegForm: { full_name: '', subject: '', username: '', password: '', school_id: '', class_head_id: null },
+        directorRegForm: { full_name: '', username: '', password: '', phone: '', school_id: '' },
+        registrationSelectedRegion: '',
+        regionSchoolsList: [],
+        schoolSearchQuery: '',
+        editAssignments: { subject: '', class_head_id: null, teaching_class_ids: [] },
+
+        toast: { show: false, message: '', type: 'success' },
+        allClasses: [],
+        allSchoolsList: [],
+        popularSchools: [],
+        allRegions: [],
+
+        // Student Dashboard
+        studentDashboard: null,
+        studentTab: 'homework',
+
+        // Teacher Dashboard
+        teacherDashboard: null,
+        activeTeacherClass: null,
+        classStudents: [],
+        classGrades: [],
+        classLessons: [],
+        unassignedStudents: [],
+        selectedStudentToAdd: '',
+        directStudentName: '',
+        classTab: 'students',
+        journalDate: new Date().toISOString().split('T')[0],
+        attendanceMap: {},
+        newGrade: { student_id: '', grade_type: 'ksq1', score: '', comment: '' },
+        newLesson: { topic: '', homework: '' },
+        showAssignModal: false,
+
+        // Admin Dashboard
+        adminTab: 'pending', // 'pending', 'schools', 'teachers', 'students', 'classes'
+        selectedAdminSchoolId: null,
+        selectedRegionFilter: '',
+        adminOverview: { teachers_count: 0, students_count: 0, pending_count: 0, classes_count: 0, total_schools: 0, total_moderators: 0 },
+        adminPendingRequests: [],
+        adminSchoolsSummary: [],
+        adminTeachers: [],
+        adminStudents: [],
+        
+        // Moderator Assignment Modal
+        showAssignModeratorModal: false,
+        targetSchoolForModerator: {},
+        selectedModeratorUserId: '',
+        schoolPotentialModerators: [],
+
+        // Password Management
+        showForgotPasswordModal: false,
+        forgotTab: 'user',
+        forgotUserForm: { username: '', contact_phone: '' },
+        forgotAdminForm: { recovery_code: '', new_password: '', confirm_password: '' },
+
+        showChangePasswordModal: false,
+        changePasswordForm: { old_password: '', new_password: '', confirm_password: '' },
+        showPasswordMap: {},
+
+        adminPasswordResets: []
+      };
+    },
+    async mounted() {
+      await this.loadSchoolsDirectory();
+      await this.loadAllClasses();
+
+      const saved = localStorage.getItem('mekteb31_session');
+      if (saved) {
+        try {
+          this.currentUser = JSON.parse(saved);
+          if (this.currentUser.role === 'admin') {
+            this.currentView = 'admin';
+            await this.loadAdminData();
+          } else if (this.currentUser.role === 'director' || this.currentUser.is_moderator) {
+            this.currentView = 'director';
+            this.selectedAdminSchoolId = this.currentUser.school_id;
+            await this.loadAdminData();
+          } else if (this.currentUser.role === 'teacher') {
+            this.currentView = 'teacher';
+            await this.loadTeacherDashboard();
+          } else if (this.currentUser.role === 'student') {
+            this.currentView = 'student';
+            await this.loadStudentDashboard();
+          }
+        } catch(e) {}
+      }
+
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        this.installPrompt = e;
+      });
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+      }
+    },
+    methods: {
+      showToast(msg, type = 'success') {
+        this.toast.message = msg;
+        this.toast.type = type;
+        this.toast.show = true;
+        setTimeout(() => { this.toast.show = false; }, 3500);
+      },
+
+      installPwa() {
+        if (!this.installPrompt) return;
+        this.installPrompt.prompt();
+        this.installPrompt.userChoice.then(() => { this.installPrompt = null; });
+      },
+
+      goHome() {
+        if (this.currentUser) {
+          if (this.currentUser.role === 'admin') this.currentView = 'admin';
+          else if (this.currentUser.role === 'director' || this.currentUser.is_moderator) this.currentView = 'director';
+          else if (this.currentUser.role === 'teacher') this.currentView = 'teacher';
+          else this.currentView = 'student';
+        } else {
+          this.currentView = 'home';
+        }
+      },
+
+      async onRegistrationRegionChange() {
+        this.schoolSearchQuery = '';
+        if (!this.registrationSelectedRegion) {
+          this.regionSchoolsList = [];
+          return;
+        }
+        try {
+          const res = await fetch('/api/schools?region=' + encodeURIComponent(this.registrationSelectedRegion));
+          this.regionSchoolsList = await res.json();
+          this.studentRegForm.school_id = '';
+          this.teacherRegForm.school_id = '';
+          this.directorRegForm.school_id = '';
+        } catch(e) {
+          console.error(e);
+        }
+      },
+
+      async handleDirectorRegister() {
+        if (!this.directorRegForm.school_id) {
+          this.showToast('Zəhmət olmasa rəhbəri olduğunuz məktəbi seçin!', 'error');
+          return;
+        }
+        this.isSubmitting = true;
+        try {
+          const res = await fetch('/api/auth/register-director', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.directorRegForm)
+          });
+          const d = await res.json();
+          if (!res.ok) throw new Error(d.detail || 'Qeydiyyat xətası');
+          this.showToast(d.message);
+          this.showAuthModal = false;
+        } catch(e) {
+          this.showToast(e.message, 'error');
+        } finally {
+          this.isSubmitting = false;
+        }
+      },
+
+      async loadSchoolsDirectory() {
+        try {
+          const res = await fetch('/api/schools');
+          this.allSchoolsList = await res.json();
+          this.popularSchools = this.allSchoolsList.slice(0, 50);
+
+          const rRes = await fetch('/api/schools/regions');
+          this.allRegions = await rRes.json();
+        } catch(e) {}
+      },
+
+      openAuthModal(role, action) {
+        this.authRole = role;
+        this.authAction = action;
+        this.loginForm = { username: '', password: '' };
+        this.registrationSelectedRegion = '';
+        this.regionSchoolsList = [];
+        this.schoolSearchQuery = '';
+        this.showAuthModal = true;
+      },
+
+      openAdminLogin() {
+        this.authRole = 'admin';
+        this.authAction = 'login';
+        this.loginForm = { username: 'admin', password: '' };
+        this.showAuthModal = true;
+      },
+
+      async loadAllClasses() {
+        try {
+          const sId = this.currentUser && (this.currentUser.role === 'director' || this.currentUser.is_moderator) ? this.currentUser.school_id : this.selectedAdminSchoolId;
+          const url = sId ? `/api/classes?school_id=${sId}` : '/api/classes';
+          const res = await fetch(url);
+          this.allClasses = await res.json();
+        } catch(e) {}
+      },
+
+      // Auth Handlers
+      async handleLogin() {
+        this.isSubmitting = true;
+        try {
+          const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.loginForm)
+          });
+          const d = await res.json();
+          if (!res.ok) {
+            this.showToast(d.detail || 'Giriş uğursuz oldu', 'error');
+            return;
+          }
+
+          this.currentUser = d.user;
+          localStorage.setItem('mekteb31_session', JSON.stringify(d.user));
+          this.showAuthModal = false;
+          this.showToast(`Xoş gəlmisiniz, ${this.currentUser.full_name}!`);
+
+          if (this.currentUser.role === 'admin') {
+            this.currentView = 'admin';
+            await this.loadAdminData();
+          } else if (this.currentUser.role === 'director' || this.currentUser.is_moderator) {
+            this.currentView = 'director';
+            this.selectedAdminSchoolId = this.currentUser.school_id;
+            await this.loadAdminData();
+          } else if (this.currentUser.role === 'teacher') {
+            this.currentView = 'teacher';
+            await this.loadTeacherDashboard();
+          } else {
+            this.currentView = 'student';
+            await this.loadStudentDashboard();
+          }
+        } catch(e) {
+          this.showToast('Serverlə əlaqə qurulmadı', 'error');
+        } finally {
+          this.isSubmitting = false;
+        }
+      },
+
+      async handleStudentRegister() {
+        this.isSubmitting = true;
+        try {
+          const res = await fetch('/api/auth/register-student', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.studentRegForm)
+          });
+          const d = await res.json();
+          if (!res.ok) {
+            this.showToast(d.detail || 'Qeydiyyat zamanı xəta', 'error');
+            return;
+          }
+          this.showAuthModal = false;
+          alert('Şagird müraciətiniz qeydə alındı! ✅\n\nSistemə daxil olmaq üçün Məktəbinizin İnzibatçısının (Adminin) icazəsi lazımdır. Təsdiqləndikdən sonra daxil ola biləcəksiniz.');
+          this.showToast('Müraciətiniz Admin təsdiqinə göndərildi!');
+        } catch(e) {
+          this.showToast('Xəta baş verdi', 'error');
+        } finally {
+          this.isSubmitting = false;
+        }
+      },
+
+      async handleTeacherRegister() {
+        this.isSubmitting = true;
+        try {
+          const res = await fetch('/api/auth/register-teacher', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.teacherRegForm)
+          });
+          const d = await res.json();
+          if (!res.ok) {
+            this.showToast(d.detail || 'Qeydiyyat zamanı xəta', 'error');
+            return;
+          }
+          this.showAuthModal = false;
+          alert('Müəllim müraciətiniz qeydə alındı! ✅\n\nSistemə daxil olmaq üçün Məktəbinizin İnzibatçısının (Adminin) icazəsi lazımdır. Təsdiqləndikdən sonra hesabınız aktivləşəcək.');
+          this.showToast('Müraciətiniz Admin təsdiqinə göndərildi!');
+        } catch(e) {
+          this.showToast('Xəta baş verdi', 'error');
+        } finally {
+          this.isSubmitting = false;
+        }
+      },
+
+      logout() {
+        this.currentUser = null;
+        this.studentDashboard = null;
+        this.teacherDashboard = null;
+        this.activeTeacherClass = null;
+        localStorage.removeItem('mekteb31_session');
+        this.currentView = 'home';
+        this.showToast('Sistemdən çıxıldı');
+      },
+
+      // Student Dashboard
+      async loadStudentDashboard() {
+        if (!this.currentUser) return;
+        try {
+          const res = await fetch(`/api/student/${this.currentUser.id}/dashboard`);
+          this.studentDashboard = await res.json();
+        } catch(e) {}
+      },
+
+      // Teacher Dashboard
+      async loadTeacherDashboard() {
+        if (!this.currentUser) return;
+        try {
+          const res = await fetch(`/api/teachers/${this.currentUser.id}/dashboard`);
+          this.teacherDashboard = await res.json();
+          this.editAssignments.subject = this.teacherDashboard.teacher.subject || '';
+          this.editAssignments.class_head_id = this.teacherDashboard.teacher.class_head_id;
+          this.editAssignments.teaching_class_ids = this.teacherDashboard.teaching_classes.map(c => c.class_id);
+        } catch(e) {}
+      },
+
+      async saveTeacherAssignments() {
+        try {
+          const res = await fetch('/api/teachers/update-assignments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              teacher_id: this.currentUser.id,
+              class_head_id: this.editAssignments.class_head_id,
+              teaching_class_ids: this.editAssignments.teaching_class_ids,
+              subject: this.editAssignments.subject
+            })
+          });
+          if (res.ok) {
+            this.showToast('Tənzimləmələr yadda saxlanıldı!');
+            this.showAssignModal = false;
+            await this.loadTeacherDashboard();
+          }
+        } catch(e) {}
+      },
+
+      async openTeacherClass(c) {
+        this.activeTeacherClass = c;
+        this.newLesson.topic = '';
+        this.newLesson.homework = '';
+        await this.loadClassStudents();
+        await this.loadUnassignedStudents();
+        await this.loadClassAttendance();
+        await this.loadClassGrades();
+        await this.loadClassLessons();
+      },
+
+      async loadClassStudents() {
+        try {
+          const res = await fetch(`/api/classes/${this.activeTeacherClass.class_id}/students`);
+          this.classStudents = await res.json();
+        } catch(e) {}
+      },
+
+      async loadUnassignedStudents() {
+        try {
+          const sId = this.currentUser ? this.currentUser.school_id : 1;
+          const res = await fetch(`/api/students/unassigned?school_id=${sId}`);
+          this.unassignedStudents = await res.json();
+        } catch(e) {}
+      },
+
+      async addExistingStudent() {
+        if (!this.selectedStudentToAdd) return;
+        try {
+          const res = await fetch('/api/classes/add-student', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              class_id: this.activeTeacherClass.class_id,
+              student_user_id: parseInt(this.selectedStudentToAdd)
+            })
+          });
+          if (res.ok) {
+            this.showToast('Şagird əlavə edildi! ✅');
+            this.selectedStudentToAdd = '';
+            await this.loadClassStudents();
+            await this.loadUnassignedStudents();
+          }
+        } catch(e) {}
+      },
+
+      async addDirectStudent() {
+        if (!this.directStudentName.trim()) return;
+        try {
+          const res = await fetch('/api/classes/add-student', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              class_id: this.activeTeacherClass.class_id,
+              full_name: this.directStudentName.trim()
+            })
+          });
+          if (res.ok) {
+            this.showToast('Şagird əlavə edildi! ✅');
+            this.directStudentName = '';
+            await this.loadClassStudents();
+          }
+        } catch(e) {}
+      },
+
+      async removeStudent(studentId) {
+        if (!confirm('Şagirdi sinifdən çıxarmaq istəyirsiniz?')) return;
+        try {
+          await fetch(`/api/classes/remove-student/${studentId}`, { method: 'POST' });
+          this.showToast('Şagird sinifdən çıxarıldı');
+          await this.loadClassStudents();
+          await this.loadUnassignedStudents();
+        } catch(e) {}
+      },
+
+      async onJournalDateChange() {
+        await this.loadClassAttendance();
+      },
+
+      async loadClassAttendance() {
+        try {
+          const subj = this.activeTeacherClass.subject || this.currentUser.subject;
+          const res = await fetch(`/api/classes/${this.activeTeacherClass.class_id}/attendance?subject=${encodeURIComponent(subj)}&date=${this.journalDate}`);
+          const map = await res.json();
+          const newMap = {};
+          this.classStudents.forEach(s => { newMap[s.id] = map[s.id] || 'present'; });
+          this.attendanceMap = newMap;
+        } catch(e) {}
+      },
+
+      markAllAttendance(status) {
+        this.classStudents.forEach(s => { this.attendanceMap[s.id] = status; });
+      },
+
+      async saveAttendance() {
+        this.isSaving = true;
+        try {
+          const records = Object.keys(this.attendanceMap).map(k => ({
+            student_id: parseInt(k),
+            status: this.attendanceMap[k]
+          }));
+          const subj = this.activeTeacherClass.subject || this.currentUser.subject;
+          await fetch('/api/classes/attendance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-User-Id': this.currentUser.id.toString() },
+            body: JSON.stringify({
+              class_id: this.activeTeacherClass.class_id,
+              subject: subj,
+              date: this.journalDate,
+              records: records
+            })
+          });
+          this.showToast('Davamiyyət yadda saxlanıldı! ✅');
+        } catch(e) {} finally {
+          this.isSaving = false;
+        }
+      },
+
+      async loadClassGrades() {
+        try {
+          const subj = this.activeTeacherClass.subject || this.currentUser.subject;
+          const res = await fetch(`/api/classes/${this.activeTeacherClass.class_id}/grades?subject=${encodeURIComponent(subj)}`);
+          this.classGrades = await res.json();
+        } catch(e) {}
+      },
+
+      async saveSingleGrade() {
+        if (!this.newGrade.student_id || !this.newGrade.score.trim()) return;
+        try {
+          const subj = this.activeTeacherClass.subject || this.currentUser.subject;
+          await fetch('/api/classes/grades', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-User-Id': this.currentUser.id.toString() },
+            body: JSON.stringify({
+              class_id: this.activeTeacherClass.class_id,
+              subject: subj,
+              date: this.journalDate,
+              grades: [{
+                student_id: parseInt(this.newGrade.student_id),
+                grade_type: this.newGrade.grade_type,
+                score: this.newGrade.score,
+                comment: this.newGrade.comment
+              }]
+            })
+          });
+          this.showToast('Qiymət yazıldı! ⭐');
+          this.newGrade.score = '';
+          await this.loadClassGrades();
+        } catch(e) {}
+      },
+
+      async deleteGrade(gradeId) {
+        if (!confirm('Qiyməti silmək istəyirsiniz?')) return;
+        try {
+          await fetch(`/api/grades/${gradeId}`, { method: 'DELETE' });
+          this.showToast('Qiymət silindi');
+          await this.loadClassGrades();
+        } catch(e) {}
+      },
+
+      async loadClassLessons() {
+        try {
+          const subj = this.activeTeacherClass.subject || this.currentUser.subject;
+          const res = await fetch(`/api/classes/${this.activeTeacherClass.class_id}/lessons?subject=${encodeURIComponent(subj)}`);
+          this.classLessons = await res.json();
+        } catch(e) {}
+      },
+
+      async saveLessonTopic() {
+        if (!this.newLesson.topic.trim()) return;
+        try {
+          const subj = this.activeTeacherClass.subject || this.currentUser.subject;
+          await fetch('/api/classes/lessons', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-User-Id': this.currentUser.id.toString() },
+            body: JSON.stringify({
+              class_id: this.activeTeacherClass.class_id,
+              subject: subj,
+              date: this.journalDate,
+              topic: this.newLesson.topic,
+              homework: this.newLesson.homework
+            })
+          });
+          this.showToast('Mövzu və ev tapşırığı qeyd olundu! 📝');
+          this.newLesson.topic = '';
+          this.newLesson.homework = '';
+          await this.loadClassLessons();
+        } catch(e) {}
+      },
+
+      // ----------------- ADMIN & MODERATOR ACTIONS -----------------
+      async loadAdminData() {
+        await this.loadAdminOverview();
+        await this.loadAdminPendingRequests();
+        await this.loadAdminPasswordResets();
+        await this.loadAdminSchoolsSummary();
+        await this.loadAdminTeachers();
+        await this.loadAdminStudents();
+        await this.loadAllClasses();
+      },
+
+      onAdminSchoolFilterChange() {
+        this.loadAdminData();
+      },
+
+      async loadAdminOverview() {
+        try {
+          const sId = this.currentUser && (this.currentUser.role === 'director' || this.currentUser.is_moderator) ? this.currentUser.school_id : this.selectedAdminSchoolId;
+          const url = sId ? `/api/admin/overview?school_id=${sId}` : '/api/admin/overview';
+          const res = await fetch(url);
+          this.adminOverview = await res.json();
+        } catch(e) {}
+      },
+
+      async loadAdminPendingRequests() {
+        try {
+          const sId = this.currentUser && (this.currentUser.role === 'director' || this.currentUser.is_moderator) ? this.currentUser.school_id : this.selectedAdminSchoolId;
+          const url = sId ? `/api/admin/pending-requests?school_id=${sId}` : '/api/admin/pending-requests';
+          const res = await fetch(url);
+          this.adminPendingRequests = await res.json();
+        } catch(e) {}
+      },
+
+      async loadAdminPasswordResets() {
+        try {
+          const sId = this.currentUser && (this.currentUser.role === 'director' || this.currentUser.is_moderator) ? this.currentUser.school_id : this.selectedAdminSchoolId;
+          const url = sId ? `/api/admin/password-resets?school_id=${sId}` : '/api/admin/password-resets';
+          const res = await fetch(url, {
+            headers: { 'X-User-Id': this.currentUser.id }
+          });
+          this.adminPasswordResets = await res.json();
+        } catch(e) {}
+      },
+
+      togglePassword(key) {
+        this.showPasswordMap[key] = !this.showPasswordMap[key];
+      },
+
+      openForgotPasswordModal() {
+        this.showAuthModal = false;
+        this.forgotTab = this.authRole === 'admin' ? 'admin' : 'user';
+        this.forgotUserForm = { username: '', contact_phone: '' };
+        this.forgotAdminForm = { recovery_code: '', new_password: '', confirm_password: '' };
+        this.showForgotPasswordModal = true;
+      },
+
+      openChangePasswordModal() {
+        this.changePasswordForm = { old_password: '', new_password: '', confirm_password: '' };
+        this.showChangePasswordModal = true;
+      },
+
+      async handleForgotPasswordSubmit() {
+        if (!this.forgotUserForm.username.trim()) {
+          this.showToast('İstifadəçi adınızı qeyd edin!', 'error');
+          return;
+        }
+        this.isSubmitting = true;
+        try {
+          const res = await fetch('/api/auth/forgot-password-request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.forgotUserForm)
+          });
+          const d = await res.json();
+          if (!res.ok) throw new Error(d.detail || 'Xəta baş verdi');
+          this.showToast(d.message);
+          this.showForgotPasswordModal = false;
+        } catch(e) {
+          this.showToast(e.message, 'error');
+        } finally {
+          this.isSubmitting = false;
+        }
+      },
+
+      async handleAdminRecoverySubmit() {
+        if (!this.forgotAdminForm.recovery_code.trim()) {
+          this.showToast('Bərpa açar sözünü (kodu) daxil edin!', 'error');
+          return;
+        }
+        if (this.forgotAdminForm.new_password !== this.forgotAdminForm.confirm_password) {
+          this.showToast('Yeni şifrələr bir-biri ilə eyni deyil!', 'error');
+          return;
+        }
+        if (this.forgotAdminForm.new_password.length < 3) {
+          this.showToast('Şifrə ən azı 3 simvol olmalıdır!', 'error');
+          return;
+        }
+        this.isSubmitting = true;
+        try {
+          const res = await fetch('/api/auth/admin-recovery-reset', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              recovery_code: this.forgotAdminForm.recovery_code,
+              new_password: this.forgotAdminForm.new_password
+            })
+          });
+          const d = await res.json();
+          if (!res.ok) throw new Error(d.detail || 'Xəta baş verdi');
+          this.showToast(d.message);
+          this.showForgotPasswordModal = false;
+          this.openAdminLogin();
+        } catch(e) {
+          this.showToast(e.message, 'error');
+        } finally {
+          this.isSubmitting = false;
+        }
+      },
+
+      async handleChangePasswordSubmit() {
+        if (!this.changePasswordForm.old_password.trim() || !this.changePasswordForm.new_password.trim()) {
+          this.showToast('Bütün xanaları doldurun!', 'error');
+          return;
+        }
+        if (this.changePasswordForm.new_password !== this.changePasswordForm.confirm_password) {
+          this.showToast('Yeni şifrələr bir-biri ilə uyğun gəlmir!', 'error');
+          return;
+        }
+        if (this.changePasswordForm.new_password.length < 3) {
+          this.showToast('Yeni şifrə ən azı 3 simvol olmalıdır!', 'error');
+          return;
+        }
+        this.isSubmitting = true;
+        try {
+          const res = await fetch('/api/auth/change-own-password', {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'X-User-Id': this.currentUser.id
+            },
+            body: JSON.stringify({
+              old_password: this.changePasswordForm.old_password,
+              new_password: this.changePasswordForm.new_password
+            })
+          });
+          const d = await res.json();
+          if (!res.ok) throw new Error(d.detail || 'Xəta baş verdi');
+          this.showToast(d.message);
+          this.showChangePasswordModal = false;
+        } catch(e) {
+          this.showToast(e.message, 'error');
+        } finally {
+          this.isSubmitting = false;
+        }
+      },
+
+      async resolvePasswordReset(resetItem, customPassword = '') {
+        const pwd = customPassword || prompt(`${resetItem.full_name} üçün yeni şifrə daxil edin:`, '123456');
+        if (!pwd) return;
+        try {
+          const res = await fetch(`/api/admin/password-resets/${resetItem.id}/resolve`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              'X-User-Id': this.currentUser.id
+            },
+            body: JSON.stringify({ new_password: pwd })
+          });
+          const d = await res.json();
+          if (!res.ok) throw new Error(d.detail || 'Xəta baş verdi');
+          this.showToast(d.message);
+          await this.loadAdminData();
+        } catch(e) {
+          this.showToast(e.message, 'error');
+        }
+      },
+
+      async approveUser(userId) {
+        try {
+          const res = await fetch(`/api/admin/approve-user/${userId}`, { method: 'POST' });
+          if (res.ok) {
+            this.showToast('İstifadəçi təsdiqləndi! ✅');
+            await this.loadAdminData();
+          }
+        } catch(e) {}
+      },
+
+      async rejectUser(userId) {
+        if (!confirm('Bu müraciəti rədd etmək istəyirsiniz?')) return;
+        try {
+          const res = await fetch(`/api/admin/reject-user/${userId}`, { method: 'POST' });
+          if (res.ok) {
+            this.showToast('Müraciət silindi.');
+            await this.loadAdminData();
+          }
+        } catch(e) {}
+      },
+
+      async loadAdminSchoolsSummary() {
+        try {
+          const url = this.selectedRegionFilter ? `/api/admin/schools-summary?region=${encodeURIComponent(this.selectedRegionFilter)}` : '/api/admin/schools-summary';
+          const res = await fetch(url);
+          this.adminSchoolsSummary = await res.json();
+        } catch(e) {}
+      },
+
+      async loadAdminTeachers() {
+        try {
+          const sId = this.currentUser && (this.currentUser.role === 'director' || this.currentUser.is_moderator) ? this.currentUser.school_id : this.selectedAdminSchoolId;
+          const url = sId ? `/api/admin/teachers?school_id=${sId}` : '/api/admin/teachers';
+          const res = await fetch(url);
+          this.adminTeachers = await res.json();
+        } catch(e) {}
+      },
+
+      async loadAdminStudents() {
+        try {
+          const sId = this.currentUser && (this.currentUser.role === 'director' || this.currentUser.is_moderator) ? this.currentUser.school_id : this.selectedAdminSchoolId;
+          const url = sId ? `/api/admin/students?school_id=${sId}` : '/api/admin/students';
+          const res = await fetch(url);
+          this.adminStudents = await res.json();
+        } catch(e) {}
+      },
+
+      async openAssignModeratorModal(school) {
+        this.targetSchoolForModerator = school;
+        this.selectedModeratorUserId = '';
+        try {
+          const res = await fetch(`/api/admin/teachers?school_id=${school.id}`);
+          this.schoolPotentialModerators = await res.json();
+          this.showAssignModeratorModal = true;
+        } catch(e) {}
+      },
+
+      async confirmAssignModerator() {
+        if (!this.selectedModeratorUserId) {
+          this.showToast('İstifadəçi seçin!', 'error');
+          return;
+        }
+
+        try {
+          const res = await fetch('/api/admin/moderators/assign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              user_id: parseInt(this.selectedModeratorUserId),
+              school_id: this.targetSchoolForModerator.id
+            })
+          });
+          if (res.ok) {
+            this.showToast('Məktəbə Nəzarətçi (Köməkçi) təyin edildi! 🛡️');
+            this.showAssignModeratorModal = false;
+            await this.loadAdminSchoolsSummary();
+          }
+        } catch(e) {}
+      },
+
+      async adminResetTeacherPass(t) {
+        const pass = prompt(`"${t.full_name}" üçün yeni şifrə təyin edin:`);
+        if (!pass || !pass.trim()) return;
+        try {
+          await fetch(`/api/admin/teachers/${t.id}/reset-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ new_password: pass.trim() })
+          });
+          this.showToast('Şifrə yeniləndi!');
+        } catch(e) {}
+      },
+
+      async adminDeleteTeacher(t) {
+        if (!confirm(`"${t.full_name}" müəllimi silmək istəyirsiniz?`)) return;
+        try {
+          await fetch(`/api/admin/teachers/${t.id}`, { method: 'DELETE' });
+          this.showToast('Müəllim silindi');
+          await this.loadAdminData();
+        } catch(e) {}
+      },
+
+      async adminChangeStudentClass(studentId, classId) {
+        try {
+          await fetch(`/api/admin/students/${studentId}/assign-class`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ class_id: classId ? parseInt(classId) : null })
+          });
+          this.showToast('Şagirdin sinfi dəyişdirildi! ✅');
+          await this.loadAdminStudents();
+        } catch(e) {}
+      },
+
+      async adminResetStudentPass(s) {
+        const pass = prompt(`"${s.full_name}" şagirdi üçün yeni şifrə təyin edin:`);
+        if (!pass || !pass.trim()) return;
+        try {
+          await fetch(`/api/admin/students/${s.id}/reset-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ new_password: pass.trim() })
+          });
+          this.showToast('Şagirdin şifrəsi yeniləndi!');
+        } catch(e) {}
+      },
+
+      async adminDeleteStudent(s) {
+        if (!confirm(`"${s.full_name}" şagirdini silmək istəyirsiniz?`)) return;
+        try {
+          await fetch(`/api/admin/students/${s.id}`, { method: 'DELETE' });
+          this.showToast('Şagird silindi');
+          await this.loadAdminData();
+        } catch(e) {}
+      },
+
+      getClassesByGrade(grade) {
+        return this.allClasses.filter(c => c.grade === grade);
+      },
+
+      async promoteSingleClass(c) {
+        if (!confirm(`"${c.name}" sinfini 1 pillə artırmaq istəyirsiniz?\n(İndeks "${c.section}" eyni qalacaq, şagirdlər avtomatik növbəti sinfə keçəcək)`)) return;
+        try {
+          const res = await fetch(`/api/admin/classes/${c.id}/promote`, { method: 'POST' });
+          const d = await res.json();
+          if (res.ok) {
+            this.showToast(d.message);
+            await this.loadAllClasses();
+            await this.loadAdminOverview();
+          } else {
+            this.showToast(d.detail || 'Xəta baş verdi', 'error');
+          }
+        } catch(e) {
+          this.showToast('Xəta baş verdi', 'error');
+        }
+      },
+
+      async promoteAllClassesInSchool() {
+        const sId = this.currentUser && (this.currentUser.role === 'director' || this.currentUser.is_moderator) 
+                    ? this.currentUser.school_id 
+                    : (this.selectedAdminSchoolId || 1);
+        if (!confirm('DİQQƏT: Bu məktəbdəki BÜTÜN sinifləri 1 il artırmaq istəyirsiniz?\n\n- Bütün siniflərin indeksi eyni qalacaq (məs. 1A ➔ 2A, 5B ➔ 6B)\n- Şagirdlər avtomatik yeni sinfə keçəcək\n- 11-ci siniflər məzun olacaq')) return;
+        try {
+          const res = await fetch(`/api/admin/schools/${sId}/promote-all-classes`, { method: 'POST' });
+          const d = await res.json();
+          if (res.ok) {
+            this.showToast(d.message);
+            await this.loadAllClasses();
+            await this.loadAdminOverview();
+          } else {
+            this.showToast(d.detail || 'Xəta baş verdi', 'error');
+          }
+        } catch(e) {
+          this.showToast('Xəta baş verdi', 'error');
+        }
+      },
+
+      async adminQuickAddIndex(grade) {
+        const existing = this.getClassesByGrade(grade).map(c => c.section.toUpperCase());
+        const alphabet = ['A', 'B', 'C', 'Ç', 'D', 'E', 'Ə', 'F', 'G', 'H'];
+        let suggested = 'A';
+        for (const l of alphabet) {
+          if (!existing.includes(l)) {
+            suggested = l;
+            break;
+          }
+        }
+
+        const sec = prompt(`${grade}-ci sinif üçün əlavə etmək istədiyiniz indeksi daxil edin:`, suggested);
+        if (!sec || !sec.trim()) return;
+
+        const sId = this.currentUser && (this.currentUser.role === 'director' || this.currentUser.is_moderator) ? this.currentUser.school_id : (this.selectedAdminSchoolId || 1);
+        try {
+          const res = await fetch('/api/admin/classes/add-index', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ grade: grade, section: sec.trim().toUpperCase(), school_id: sId })
+          });
+          const d = await res.json();
+          if (res.ok) {
+            this.showToast(`Yeni sinif yaradıldı: ${d.name} ✅`);
+            await this.loadAllClasses();
+            await this.loadAdminOverview();
+          } else {
+            this.showToast(d.detail || 'Xəta baş verdi', 'error');
+          }
+        } catch(e) {
+          this.showToast('Xəta baş verdi', 'error');
+        }
+      },
+
+      async adminDeleteClass(c) {
+        if (!confirm(`"${c.name}" sinfini silmək (azaltmaq) istədiyinizdən əminsiniz?`)) return;
+        try {
+          const res = await fetch(`/api/admin/classes/${c.id}`, { method: 'DELETE' });
+          if (res.ok) {
+            this.showToast(`"${c.name}" sinfi silindi`);
+            await this.loadAllClasses();
+            await this.loadAdminOverview();
+          }
+        } catch(e) {}
+      }
+
+    }
+  }).mount('#app');
+</script>
+</body>
+</html>
