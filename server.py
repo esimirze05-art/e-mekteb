@@ -1559,34 +1559,49 @@ def save_class_timetable(class_id: int, req: SaveTimetableRequest):
 # ----------------- VALİDEYN PORTALI VƏ ŞAGİRD SORGUSU -----------------
 
 @app.get("/api/parent/student-lookup")
-def parent_student_lookup(query: str, school_id: Optional[int] = None):
+def parent_student_lookup(query: Optional[str] = None, student_id: Optional[int] = None, school_id: Optional[int] = None):
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
-    q_clean = query.strip()
-    clean_num = q_clean.replace(" ", "").replace("-", "").replace("+", "")
-    sql = """
-    SELECT u.id, u.full_name, u.username, u.phone, u.class_id, u.school_id, c.name as class_name,
-           s.name as school_name, t_head.full_name as head_teacher_name
-    FROM users u
-    LEFT JOIN schools s ON u.school_id = s.id
-    LEFT JOIN classes c ON u.class_id = c.id
-    LEFT JOIN users t_head ON t_head.class_head_id = c.id
-    WHERE u.role = 'student' AND u.status = 'approved'
-      AND (
-          u.username = ? 
-          OR LOWER(u.full_name) LIKE LOWER(?)
-          OR u.phone = ?
-          OR REPLACE(REPLACE(REPLACE(u.phone, ' ', ''), '-', ''), '+', '') = ?
-      )
-    """
-    params = [q_clean, f"%{q_clean}%", q_clean, clean_num]
-    if school_id:
-        sql += " AND u.school_id = ?"
-        params.append(school_id)
-    sql += " LIMIT 5"
-
+    if student_id:
+        sql = """
+        SELECT u.id, u.full_name, u.username, u.phone, u.class_id, u.school_id, c.name as class_name,
+               s.name as school_name, t_head.full_name as head_teacher_name
+        FROM users u
+        LEFT JOIN schools s ON u.school_id = s.id
+        LEFT JOIN classes c ON u.class_id = c.id
+        LEFT JOIN users t_head ON t_head.class_head_id = c.id
+        WHERE u.id = ? AND u.role = 'student' AND u.status = 'approved'
+        """
+        params = [student_id]
+    elif query and query.strip():
+        q_clean = query.strip()
+        clean_num = q_clean.replace(" ", "").replace("-", "").replace("+", "")
+        sql = """
+        SELECT u.id, u.full_name, u.username, u.phone, u.class_id, u.school_id, c.name as class_name,
+               s.name as school_name, t_head.full_name as head_teacher_name
+        FROM users u
+        LEFT JOIN schools s ON u.school_id = s.id
+        LEFT JOIN classes c ON u.class_id = c.id
+        LEFT JOIN users t_head ON t_head.class_head_id = c.id
+        WHERE u.role = 'student' AND u.status = 'approved'
+          AND (
+              u.username = ? 
+              OR LOWER(u.full_name) LIKE LOWER(?)
+              OR u.phone = ?
+              OR REPLACE(REPLACE(REPLACE(u.phone, ' ', ''), '-', ''), '+', '') = ?
+          )
+        """
+        params = [q_clean, f"%{q_clean}%", q_clean, clean_num]
+        if school_id:
+            sql += " AND u.school_id = ?"
+            params.append(school_id)
+        sql += " LIMIT 5"
+    else:
+        conn.close()
+        raise HTTPException(status_code=400, detail="Axtarış sorğusu və ya şagird seçilməyib!")
+    
     cursor.execute(sql, params)
     students = [dict(s) for s in cursor.fetchall()]
 
