@@ -37,6 +37,30 @@
     ::-webkit-scrollbar-track { background: #f1f5f9; }
     ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
   </style>
+
+  <style>
+    @media print {
+      body * {
+        visibility: hidden !important;
+      }
+      #printable-summative-report, #printable-summative-report * {
+        visibility: visible !important;
+      }
+      #printable-summative-report {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        background: white !important;
+        color: black !important;
+        font-size: 11px !important;
+        padding: 0 !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
+  </style>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased font-sans min-h-screen flex flex-col selection:bg-brand-500 selection:text-white">
 
@@ -173,6 +197,34 @@
               Direktor Qeydiyyatı
             </button>
           </div>
+
+      <!-- 4. Quick Action Cards: Valideyn Portalı & Məktəbin Fəxri Lövhəsi -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-3">
+        <!-- Valideyn Portalı Card -->
+        <div @click="openParentModal" class="touch-btn cursor-pointer bg-gradient-to-br from-amber-500/10 via-amber-50 to-orange-50 border-2 border-amber-300 hover:border-amber-500 rounded-3xl p-5 shadow-sm hover:shadow-md transition-all flex items-center gap-4 group">
+          <div class="w-14 h-14 rounded-2xl bg-amber-500 text-white flex items-center justify-center text-3xl shadow-md group-hover:scale-105 transition-transform">
+            👨‍👩‍👧
+          </div>
+          <div class="flex-1">
+            <span class="text-[10px] font-black uppercase tracking-wider text-amber-900 bg-amber-200/80 px-2.5 py-0.5 rounded-full">Gözətçi Rejimi</span>
+            <h3 class="text-base font-black text-slate-900 mt-1">Valideyn Şəxsi Kabineti</h3>
+            <p class="text-xs text-slate-600 mt-0.5">Şagird kodu və ya adı ilə övladınızın KSQ/BSQ ballarına, gündəliyinə və tapşırıqlarına baxın ➔</p>
+          </div>
+        </div>
+
+        <!-- Məktəbin Fəxri Lövhəsi Card -->
+        <div @click="openLeaderboard()" class="touch-btn cursor-pointer bg-gradient-to-br from-indigo-500/10 via-indigo-50 to-purple-50 border-2 border-indigo-300 hover:border-indigo-500 rounded-3xl p-5 shadow-sm hover:shadow-md transition-all flex items-center gap-4 group">
+          <div class="w-14 h-14 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-3xl shadow-md group-hover:scale-105 transition-transform">
+            🏆
+          </div>
+          <div class="flex-1">
+            <span class="text-[10px] font-black uppercase tracking-wider text-indigo-900 bg-indigo-200/80 px-2.5 py-0.5 rounded-full">Nailiyyətlər & Reytinq</span>
+            <h3 class="text-base font-black text-slate-900 mt-1">Məktəbin Fəxri Lövhəsi</h3>
+            <p class="text-xs text-slate-600 mt-0.5">Məktəb üzrə ən yüksək KSQ ortalamasına sahib Əlaçı və Zərbəçi şagirdlər ➔</p>
+          </div>
+        </div>
+      </div>
+
         </div>
 
       </div>
@@ -218,6 +270,10 @@
             <button @click="openChangePasswordModal" class="touch-btn px-3 py-1.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-xs font-bold border border-white/20 flex items-center gap-1.5 shadow-sm">
               <span>🔑</span>
               <span>{{ currentUser.role === 'admin' ? 'Admin Şifrəmi Dəyiş' : 'Direktor Şifrəmi Dəyiş' }}</span>
+            </button>
+            <button @click="openLeaderboard(currentUser.school_id)" class="touch-btn px-3 py-1.5 bg-amber-500/30 hover:bg-amber-500/50 text-amber-200 rounded-xl text-xs font-bold border border-amber-400/40 flex items-center gap-1.5 shadow-sm">
+              <span>🏆</span>
+              <span>Fəxri Lövhə (Reytinq)</span>
             </button>
           </div>
         </div>
@@ -633,18 +689,54 @@
 
       <div v-else-if="studentDashboard && studentDashboard.enrolled" class="space-y-5">
         <div class="flex border-b border-slate-200 gap-2 overflow-x-auto">
-          <button @click="studentTab = 'homework'" :class="studentTab === 'homework' ? 'border-sky-600 text-sky-600 font-bold bg-white' : 'border-transparent text-slate-500'" class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap">
-            📚 Ev Tapşırıqları və Mövzular
+          <button @click="studentTab = 'homework'" :class="studentTab === 'homework' ? 'border-sky-600 text-sky-600 font-bold bg-white' : 'border-transparent text-slate-500'" class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap flex items-center gap-1.5">
+            <span>📚</span>
+            <span>Ev Tapşırıqları & Gündəlik</span>
           </button>
-          <button @click="studentTab = 'grades'" :class="studentTab === 'grades' ? 'border-sky-600 text-sky-600 font-bold bg-white' : 'border-transparent text-slate-500'" class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap">
-            ⭐ Mənim Qiymətlərim (KSQ / BSQ)
+          <button @click="studentTab = 'grades'" :class="studentTab === 'grades' ? 'border-sky-600 text-sky-600 font-bold bg-white' : 'border-transparent text-slate-500'" class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap flex items-center gap-1.5">
+            <span>⭐</span>
+            <span>KSQ & Qiymətlərim</span>
           </button>
-          <button @click="studentTab = 'attendance'" :class="studentTab === 'attendance' ? 'border-sky-600 text-sky-600 font-bold bg-white' : 'border-transparent text-slate-500'" class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap">
-            ✅ Davamiyyətim
+          <button @click="studentTab = 'timetable'" :class="studentTab === 'timetable' ? 'border-sky-600 text-sky-600 font-bold bg-white' : 'border-transparent text-slate-500'" class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap flex items-center gap-1.5">
+            <span>🗓️</span>
+            <span>Həftəlik Dərs Cədvəli</span>
+          </button>
+          <button @click="studentTab = 'attendance'" :class="studentTab === 'attendance' ? 'border-sky-600 text-sky-600 font-bold bg-white' : 'border-transparent text-slate-500'" class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap flex items-center gap-1.5">
+            <span>✅</span>
+            <span>Davamiyyətim</span>
           </button>
         </div>
 
         <div v-if="studentTab === 'homework'" class="space-y-3">
+
+          <!-- 1. Dedicated Interactive Homework Tasks -->
+          <div v-if="studentDashboard.homework && studentDashboard.homework.length > 0" class="space-y-3">
+            <h4 class="text-sm font-black text-slate-900 flex items-center justify-between">
+              <span>📌 Müəllimlərin Təyin Etdiyi Ev Tapşırıqları</span>
+              <span class="text-xs text-sky-600 font-bold bg-sky-50 px-2 py-0.5 rounded-full border border-sky-100">{{ studentDashboard.homework.length }} aktiv tapşırıq</span>
+            </h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div v-for="hw in studentDashboard.homework" :key="hw.id" class="p-4 rounded-3xl border transition-all flex flex-col justify-between" :class="hw.is_completed ? 'bg-emerald-50/40 border-emerald-300' : 'bg-white border-slate-200 shadow-sm'">
+                <div>
+                  <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-bold px-2 py-0.5 rounded-md" :class="hw.is_completed ? 'bg-emerald-100 text-emerald-800' : 'bg-sky-50 text-sky-700 border border-sky-200'">{{ hw.subject }}</span>
+                    <span class="text-xs font-bold" :class="hw.is_completed ? 'text-emerald-700' : 'text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200'">Son tarix: 📅 {{ hw.due_date }}</span>
+                  </div>
+                  <h5 class="text-sm font-bold text-slate-900 mt-2" :class="{'line-through text-slate-400': hw.is_completed}">{{ hw.title }}</h5>
+                  <p v-if="hw.description" class="text-xs text-slate-600 mt-1 bg-slate-50 p-2.5 rounded-xl border border-slate-100 leading-relaxed">{{ hw.description }}</p>
+                </div>
+                <div class="flex items-center justify-between pt-3 mt-3 border-t border-slate-100 text-xs">
+                  <span class="text-slate-500 font-medium">Müəllim: {{ hw.teacher_name }}</span>
+                  <button @click="toggleStudentHomework(hw.id)" class="touch-btn px-3 py-1.5 rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5" :class="hw.is_completed ? 'bg-emerald-600 text-white' : 'bg-slate-100 hover:bg-emerald-100 text-slate-700 hover:text-emerald-800 border border-slate-300'">
+                    <span>{{ hw.is_completed ? '✓ Bitirildi' : '○ Yerinə Yetirdim' }}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <h4 class="text-sm font-black text-slate-900 pt-2">📖 Gündəlik Dərslik Mövzuları və Qeydlər</h4>
+
           <div v-if="studentDashboard.lessons.length === 0" class="text-center py-10 bg-white rounded-3xl text-slate-400 text-xs">Hələlik ev tapşırığı qeyd olunmayıb.</div>
           <div v-for="l in studentDashboard.lessons" :key="l.id" class="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm space-y-2">
             <div class="flex items-center justify-between text-xs">
@@ -790,16 +882,28 @@
 
         <div class="flex border-b border-slate-200 gap-2 overflow-x-auto">
           <button @click="classTab = 'students'" :class="classTab === 'students' ? 'border-brand-600 text-brand-600 font-bold bg-white' : 'border-transparent text-slate-500'" class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap">
-            👥 Şagirdlər (Uşaq Əlavə Et)
+            👥 Şagirdlər
           </button>
           <button @click="classTab = 'attendance'" :class="classTab === 'attendance' ? 'border-brand-600 text-brand-600 font-bold bg-white' : 'border-transparent text-slate-500'" class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap">
             ✅ Davamiyyət
           </button>
           <button @click="classTab = 'grades'" :class="classTab === 'grades' ? 'border-brand-600 text-brand-600 font-bold bg-white' : 'border-transparent text-slate-500'" class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap">
-            ⭐ KSQ və Qiymətlər
+            ⭐ Formativ Qiymətlər
+          </button>
+          <button @click="classTab = 'summative'; loadClassSummative()" :class="classTab === 'summative' ? 'border-amber-600 text-amber-700 font-black bg-amber-50/60 shadow-sm' : 'border-transparent text-slate-500'" class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap flex items-center gap-1.5">
+            <span>📊</span>
+            <span>KSQ & BSQ Summativ Jurnalı</span>
+          </button>
+          <button @click="classTab = 'homework'; loadClassHomework()" :class="classTab === 'homework' ? 'border-brand-600 text-brand-600 font-bold bg-white' : 'border-transparent text-slate-500'" class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap flex items-center gap-1.5">
+            <span>📚</span>
+            <span>Ev Tapşırıqları</span>
+          </button>
+          <button @click="classTab = 'timetable'; loadClassTimetable()" :class="classTab === 'timetable' ? 'border-brand-600 text-brand-600 font-bold bg-white' : 'border-transparent text-slate-500'" class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap flex items-center gap-1.5">
+            <span>🗓️</span>
+            <span>Dərs Cədvəli</span>
           </button>
           <button @click="classTab = 'topics'" :class="classTab === 'topics' ? 'border-brand-600 text-brand-600 font-bold bg-white' : 'border-transparent text-slate-500'" class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap">
-            📝 Mövzu və Ev Tapşırığı
+            📖 Mövzular
           </button>
         </div>
 
@@ -954,6 +1058,269 @@
             </div>
           </div>
         </div>
+
+        <!-- ==================== TAB: KSQ VƏ BSQ SUMMATİV JURNAL ==================== -->
+        <div v-if="classTab === 'summative'" class="space-y-6">
+          
+          <!-- Summativ Statistika Kartları -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 no-print">
+            <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+              <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Cəmi Şagird</span>
+              <div class="text-2xl font-black text-slate-900 mt-1">{{ summativeMatrix.stats.total_students || 0 }} nəfər</div>
+              <span class="text-[11px] text-slate-500">Qiymətləndirilən: {{ summativeMatrix.stats.graded_count || 0 }}</span>
+            </div>
+            <div class="bg-emerald-50 rounded-2xl p-4 border border-emerald-200 shadow-sm">
+              <span class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Keyfiyyət Faizi (Q%)</span>
+              <div class="text-2xl font-black text-emerald-800 mt-1">{{ summativeMatrix.stats.quality_pct || 0 }}%</div>
+              <span class="text-[11px] text-emerald-600">4 və 5 alanlar nisbəti</span>
+            </div>
+            <div class="bg-blue-50 rounded-2xl p-4 border border-blue-200 shadow-sm">
+              <span class="text-[11px] font-bold text-blue-700 uppercase tracking-wider">Müvəffəqiyyət (M%)</span>
+              <div class="text-2xl font-black text-blue-800 mt-1">{{ summativeMatrix.stats.success_pct || 0 }}%</div>
+              <span class="text-[11px] text-blue-600">3, 4, 5 alanlar nisbəti</span>
+            </div>
+            <div class="bg-amber-50 rounded-2xl p-4 border border-amber-200 shadow-sm">
+              <span class="text-[11px] font-bold text-amber-700 uppercase tracking-wider">Orta Summativ Bal</span>
+              <div class="text-2xl font-black text-amber-800 mt-1">{{ summativeMatrix.stats.average_score || 0 }} / 100</div>
+              <span class="text-[11px] text-amber-600">100 ballıq sistem üzrə</span>
+            </div>
+          </div>
+
+          <!-- KSQ Cədvəli və Çap Paneli -->
+          <div id="printable-summative-report" class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
+            
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
+              <div>
+                <span class="text-xs font-bold text-brand-600 uppercase tracking-wider bg-brand-50 px-2.5 py-0.5 rounded-md border border-brand-200">Rəsmi Summativ Jurnal</span>
+                <h4 class="text-xl font-black text-slate-900 mt-1">{{ activeTeacherClass.class_name }} Sinfi — {{ activeTeacherClass.subject || currentUser.subject }}</h4>
+                <p class="text-xs text-slate-500 mt-0.5">Nazirlik Düsturu: Yarımil = (KSQ_orta × 0.40) + (BSQ × 0.60) • Ballar avtomatik yadda saxlanılır</p>
+              </div>
+              <div class="flex items-center gap-2 no-print">
+                <button @click="loadClassSummative()" class="touch-btn px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl border border-slate-300">
+                  🔄 Yenilə
+                </button>
+                <button @click="printSummativeReport()" class="touch-btn px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow-md flex items-center gap-1.5">
+                  <span>🖨️</span>
+                  <span>Rəsmi Çıxarış (A4 Çap)</span>
+                </button>
+              </div>
+            </div>
+
+            <div v-if="summativeLoading" class="text-center py-10 text-slate-400 text-xs">Yüklənir...</div>
+            <div v-else-if="!summativeMatrix.students || summativeMatrix.students.length === 0" class="text-center py-10 text-slate-400 text-xs">Bu sinifdə heç bir şagird yoxdur.</div>
+
+            <div v-else class="overflow-x-auto">
+              <table class="w-full text-xs text-left border-collapse">
+                <thead>
+                  <tr class="bg-slate-50 border-y border-slate-200 text-slate-700">
+                    <th class="py-2.5 px-2 font-bold w-8 text-center">№</th>
+                    <th class="py-2.5 px-3 font-bold min-w-[160px]">Şagirdin Soyadı, Adı</th>
+                    <!-- I YARIMIL -->
+                    <th class="py-2 px-1 text-center bg-sky-50/50 font-bold border-l border-slate-200" title="Kiçik Summativ 1">KSQ 1</th>
+                    <th class="py-2 px-1 text-center bg-sky-50/50 font-bold" title="Kiçik Summativ 2">KSQ 2</th>
+                    <th class="py-2 px-1 text-center bg-sky-50/50 font-bold" title="Kiçik Summativ 3">KSQ 3</th>
+                    <th class="py-2 px-1 text-center bg-indigo-50/60 font-bold border-l border-indigo-200" title="Böyük Summativ 1">BSQ 1</th>
+                    <th class="py-2 px-2 text-center bg-sky-100/80 font-black border-l border-slate-200">I Yarımil</th>
+                    <th class="py-2 px-2 text-center bg-sky-100/80 font-black">Qiymət</th>
+                    <!-- II YARIMIL -->
+                    <th class="py-2 px-1 text-center bg-violet-50/50 font-bold border-l border-slate-200" title="Kiçik Summativ 4">KSQ 4</th>
+                    <th class="py-2 px-1 text-center bg-violet-50/50 font-bold" title="Kiçik Summativ 5">KSQ 5</th>
+                    <th class="py-2 px-1 text-center bg-violet-50/50 font-bold" title="Kiçik Summativ 6">KSQ 6</th>
+                    <th class="py-2 px-1 text-center bg-purple-50/60 font-bold border-l border-purple-200" title="Böyük Summativ 2">BSQ 2</th>
+                    <th class="py-2 px-2 text-center bg-violet-100/80 font-black border-l border-slate-200">II Yarımil</th>
+                    <th class="py-2 px-2 text-center bg-violet-100/80 font-black">Qiymət</th>
+                    <!-- İLLİK -->
+                    <th class="py-2 px-2 text-center bg-amber-100 font-black border-l border-amber-300">İllik Bal</th>
+                    <th class="py-2 px-2 text-center bg-amber-100 font-black">İllik</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  <tr v-for="(st, idx) in summativeMatrix.students" :key="st.student_id" class="hover:bg-slate-50/80 transition-colors">
+                    <td class="py-2 px-2 text-center font-bold text-slate-400">{{ idx + 1 }}</td>
+                    <td class="py-2 px-3 font-semibold text-slate-800">{{ st.full_name }}</td>
+
+                    <!-- KSQ 1..3 inputs -->
+                    <td class="py-1 px-1 border-l border-slate-200">
+                      <input type="number" min="0" max="100" :value="st.ksq1" @change="updateSummativeScore(st.student_id, 'ksq1', $event.target.value)" placeholder="-" class="w-12 text-center py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold focus:border-brand-500 focus:ring-1 focus:ring-brand-500">
+                    </td>
+                    <td class="py-1 px-1">
+                      <input type="number" min="0" max="100" :value="st.ksq2" @change="updateSummativeScore(st.student_id, 'ksq2', $event.target.value)" placeholder="-" class="w-12 text-center py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold focus:border-brand-500 focus:ring-1 focus:ring-brand-500">
+                    </td>
+                    <td class="py-1 px-1">
+                      <input type="number" min="0" max="100" :value="st.ksq3" @change="updateSummativeScore(st.student_id, 'ksq3', $event.target.value)" placeholder="-" class="w-12 text-center py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold focus:border-brand-500 focus:ring-1 focus:ring-brand-500">
+                    </td>
+                    <!-- BSQ 1 -->
+                    <td class="py-1 px-1 border-l border-indigo-200 bg-indigo-50/30">
+                      <input type="number" min="0" max="100" :value="st.bsq1" @change="updateSummativeScore(st.student_id, 'bsq1', $event.target.value)" placeholder="-" class="w-12 text-center py-1 bg-white border border-indigo-300 rounded-lg text-xs font-bold text-indigo-700 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600">
+                    </td>
+                    <!-- I Yarımil Bal & Qiymət -->
+                    <td class="py-2 px-2 text-center font-bold text-sky-800 bg-sky-50/50 border-l border-slate-200">
+                      {{ st.sem1_score !== null ? st.sem1_score : '—' }}
+                    </td>
+                    <td class="py-2 px-2 text-center">
+                      <span v-if="st.sem1_grade" :class="st.sem1_grade >= 4 ? 'bg-emerald-100 text-emerald-800' : (st.sem1_grade === 3 ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800')" class="px-2 py-0.5 rounded-full font-black text-xs">
+                        {{ st.sem1_grade }}
+                      </span>
+                      <span v-else class="text-slate-300">—</span>
+                    </td>
+
+                    <!-- KSQ 4..6 inputs -->
+                    <td class="py-1 px-1 border-l border-slate-200">
+                      <input type="number" min="0" max="100" :value="st.ksq4" @change="updateSummativeScore(st.student_id, 'ksq4', $event.target.value)" placeholder="-" class="w-12 text-center py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold focus:border-brand-500 focus:ring-1 focus:ring-brand-500">
+                    </td>
+                    <td class="py-1 px-1">
+                      <input type="number" min="0" max="100" :value="st.ksq5" @change="updateSummativeScore(st.student_id, 'ksq5', $event.target.value)" placeholder="-" class="w-12 text-center py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold focus:border-brand-500 focus:ring-1 focus:ring-brand-500">
+                    </td>
+                    <td class="py-1 px-1">
+                      <input type="number" min="0" max="100" :value="st.ksq6" @change="updateSummativeScore(st.student_id, 'ksq6', $event.target.value)" placeholder="-" class="w-12 text-center py-1 bg-white border border-slate-200 rounded-lg text-xs font-semibold focus:border-brand-500 focus:ring-1 focus:ring-brand-500">
+                    </td>
+                    <!-- BSQ 2 -->
+                    <td class="py-1 px-1 border-l border-purple-200 bg-purple-50/30">
+                      <input type="number" min="0" max="100" :value="st.bsq2" @change="updateSummativeScore(st.student_id, 'bsq2', $event.target.value)" placeholder="-" class="w-12 text-center py-1 bg-white border border-purple-300 rounded-lg text-xs font-bold text-purple-700 focus:border-purple-600 focus:ring-1 focus:ring-purple-600">
+                    </td>
+                    <!-- II Yarımil Bal & Qiymət -->
+                    <td class="py-2 px-2 text-center font-bold text-violet-800 bg-violet-50/50 border-l border-slate-200">
+                      {{ st.sem2_score !== null ? st.sem2_score : '—' }}
+                    </td>
+                    <td class="py-2 px-2 text-center">
+                      <span v-if="st.sem2_grade" :class="st.sem2_grade >= 4 ? 'bg-emerald-100 text-emerald-800' : (st.sem2_grade === 3 ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800')" class="px-2 py-0.5 rounded-full font-black text-xs">
+                        {{ st.sem2_grade }}
+                      </span>
+                      <span v-else class="text-slate-300">—</span>
+                    </td>
+
+                    <!-- İLLİK BAL & QİYMƏT -->
+                    <td class="py-2 px-2 text-center font-black text-slate-900 bg-amber-50 border-l border-amber-300">
+                      {{ st.annual_score !== null ? st.annual_score : '—' }}
+                    </td>
+                    <td class="py-2 px-2 text-center bg-amber-50">
+                      <span v-if="st.annual_grade" :class="st.annual_grade === 5 ? 'bg-amber-400 text-slate-950 font-black shadow-sm' : (st.annual_grade === 4 ? 'bg-sky-200 text-sky-950 font-black' : (st.annual_grade === 3 ? 'bg-amber-100 text-amber-900 font-bold' : 'bg-rose-200 text-rose-950 font-black'))" class="px-2.5 py-1 rounded-lg text-xs">
+                        {{ st.annual_grade }}
+                      </span>
+                      <span v-else class="text-slate-300">—</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Çap üçün rəsmi imza sahəsi -->
+            <div class="pt-8 border-t border-slate-200 grid grid-cols-2 gap-8 text-xs text-slate-600 hidden print:grid">
+              <div>
+                <p><strong>Fənn Müəllimi:</strong> {{ currentUser.full_name }}</p>
+                <p class="mt-4">İmza: _______________________</p>
+              </div>
+              <div class="text-right">
+                <p><strong>Məktəb Direktoru:</strong> _______________________</p>
+                <p class="mt-4">M.Y. (Möhür yeri)</p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ==================== TAB: EV TAPŞIRIQLARI İDARƏETMƏSİ ==================== -->
+        <div v-if="classTab === 'homework'" class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-6">
+          <div class="bg-gradient-to-r from-brand-50 to-indigo-50 p-5 rounded-2xl border border-brand-200 space-y-3">
+            <h4 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+              <span>➕</span>
+              <span>Yeni Ev Tapşırığı Təyin Et</span>
+            </h4>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div class="sm:col-span-2 space-y-1">
+                <label class="text-[11px] font-semibold text-slate-600">Tapşırığın Mövzusu / Başlığı:</label>
+                <input type="text" v-model="newHomework.title" placeholder="Məs. Səhifə 78, Tapşırıq 4 və 5-in həlli" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium">
+              </div>
+              <div class="space-y-1">
+                <label class="text-[11px] font-semibold text-slate-600">Təslim Tarixi (Son gün):</label>
+                <input type="date" v-model="newHomework.due_date" class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs font-medium">
+              </div>
+            </div>
+            <div class="space-y-1">
+              <label class="text-[11px] font-semibold text-slate-600">Ətraflı Təlimat və Qeydlər:</label>
+              <textarea rows="2" v-model="newHomework.description" placeholder="Şagirdlər üçün xüsusi göstərişlər, qaydalar və ya dərslik qeydləri..." class="w-full bg-white border border-slate-300 rounded-xl px-3 py-2 text-xs"></textarea>
+            </div>
+            <div class="flex justify-end pt-1">
+              <button @click="submitHomework" class="touch-btn px-6 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-md flex items-center gap-1.5">
+                <span>📤</span>
+                <span>Ev Tapşırığını Şagirdlərə Göndər</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <h4 class="font-bold text-slate-900 text-sm flex items-center justify-between">
+              <span>📋 Verilmiş Ev Tapşırıqları Siyahısı</span>
+              <span class="text-xs font-normal text-slate-500">Cəmi: {{ homeworkList.length }} tapşırıq</span>
+            </h4>
+
+            <div v-if="homeworkLoading" class="text-center py-8 text-slate-400 text-xs">Yüklənir...</div>
+            <div v-else-if="homeworkList.length === 0" class="text-center py-8 text-slate-400 text-xs bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+              Bu sinif üçün hələ heç bir ev tapşırığı təyin edilməyib.
+            </div>
+
+            <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div v-for="hw in homeworkList" :key="hw.id" class="p-5 rounded-2xl bg-white border border-slate-200 hover:border-brand-300 shadow-sm space-y-3 flex flex-col justify-between">
+                <div>
+                  <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-bold text-brand-700 bg-brand-50 px-2.5 py-0.5 rounded-md border border-brand-200">{{ hw.subject }}</span>
+                    <span class="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">Son gün: 📅 {{ hw.due_date }}</span>
+                  </div>
+                  <h5 class="font-bold text-slate-900 text-sm mt-2">{{ hw.title }}</h5>
+                  <p v-if="hw.description" class="text-xs text-slate-600 mt-1 leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-100">{{ hw.description }}</p>
+                </div>
+                <div class="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500">
+                  <span>✅ Bitirən: <strong>{{ hw.completed_count }} şagird</strong></span>
+                  <button @click="deleteHomework(hw.id)" class="text-rose-600 hover:text-rose-800 font-bold hover:underline">Sil 🗑️</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ==================== TAB: DƏRS CƏDVƏLİ TƏNZİMLƏNMƏSİ ==================== -->
+        <div v-if="classTab === 'timetable'" class="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-4">
+            <div>
+              <h4 class="text-lg font-black text-slate-900">🗓️ {{ activeTeacherClass.class_name }} Sinfi Üçün Həftəlik Dərs Cədvəli</h4>
+              <p class="text-xs text-slate-500">Həftənin günləri üzrə dərsləri və saatları daxil edib yadda saxlayın</p>
+            </div>
+            <button @click="saveClassTimetable" class="touch-btn px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md flex items-center gap-1.5 self-start sm:self-auto">
+              <span>💾</span>
+              <span>Cədvəli Yadda Saxla</span>
+            </button>
+          </div>
+
+          <!-- Zəng Cədvəli Məlumatı -->
+          <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+            <span class="text-xs font-bold text-slate-700">🔔 Rəsmi Zəng Saatları:</span>
+            <div class="flex flex-wrap gap-3 mt-2 text-xs text-slate-600">
+              <span v-for="b in classTimetable.bells" :key="b.order" class="bg-white px-2.5 py-1 rounded-lg border border-slate-200 font-medium">
+                <strong>{{ b.order }}-ci saat:</strong> {{ b.start }} - {{ b.end }}
+              </span>
+            </div>
+          </div>
+
+          <!-- 5 Günlük Cədvəl Matrisi -->
+          <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div v-for="day in [1, 2, 3, 4, 5]" :key="day" class="space-y-3 bg-slate-50/70 p-4 rounded-2xl border border-slate-200">
+              <div class="font-black text-xs uppercase tracking-wider text-center py-1.5 rounded-xl bg-white border border-slate-200 text-brand-800 shadow-sm">
+                {{ day === 1 ? 'Bazar ertəsi' : (day === 2 ? 'Çərşənbə axşamı' : (day === 3 ? 'Çərşənbə' : (day === 4 ? 'Cümə axşamı' : 'Cümə'))) }}
+              </div>
+              <div class="space-y-2">
+                <div v-for="ord in 6" :key="ord" class="bg-white p-2 rounded-xl border border-slate-200 shadow-xs space-y-1">
+                  <div class="flex items-center justify-between text-[10px] text-slate-400 font-bold">
+                    <span>{{ ord }}-ci saat</span>
+                    <span v-if="classTimetable.bells && classTimetable.bells[ord-1]">{{ classTimetable.bells[ord-1].start }}</span>
+                  </div>
+                  <input type="text" v-model="timetableEditMap[day + '_' + ord].subject" placeholder="Fənn (məs. Riyaziyyat)" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs font-semibold focus:bg-white">
+                  <input type="text" v-model="timetableEditMap[day + '_' + ord].room" placeholder="Otaq / Kabinet" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 text-[10px] text-slate-500 focus:bg-white">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
 
     </div>
@@ -1471,6 +1838,38 @@
     data() {
       return {
         currentView: 'home', // 'home', 'student', 'teacher', 'admin'
+        
+        // Summativ KSQ & BSQ
+        summativeMatrix: { students: [], stats: {} },
+        summativeLoading: false,
+
+        // Ev Tapşırıqları
+        homeworkList: [],
+        newHomework: { title: '', description: '', due_date: '' },
+        homeworkLoading: false,
+
+        // Dərs Cədvəli
+        classTimetable: { bells: [], slots: [] },
+        timetableLoading: false,
+        timetableEditMap: {
+          '1_1': { subject: '', room: '' }, '1_2': { subject: '', room: '' }, '1_3': { subject: '', room: '' }, '1_4': { subject: '', room: '' }, '1_5': { subject: '', room: '' }, '1_6': { subject: '', room: '' },
+          '2_1': { subject: '', room: '' }, '2_2': { subject: '', room: '' }, '2_3': { subject: '', room: '' }, '2_4': { subject: '', room: '' }, '2_5': { subject: '', room: '' }, '2_6': { subject: '', room: '' },
+          '3_1': { subject: '', room: '' }, '3_2': { subject: '', room: '' }, '3_3': { subject: '', room: '' }, '3_4': { subject: '', room: '' }, '3_5': { subject: '', room: '' }, '3_6': { subject: '', room: '' },
+          '4_1': { subject: '', room: '' }, '4_2': { subject: '', room: '' }, '4_3': { subject: '', room: '' }, '4_4': { subject: '', room: '' }, '4_5': { subject: '', room: '' }, '4_6': { subject: '', room: '' },
+          '5_1': { subject: '', room: '' }, '5_2': { subject: '', room: '' }, '5_3': { subject: '', room: '' }, '5_4': { subject: '', room: '' }, '5_5': { subject: '', room: '' }, '5_6': { subject: '', room: '' }
+        },
+
+        // Məktəbin Fəxri Lövhəsi (Leaderboard)
+        showLeaderboardModal: false,
+        leaderboardData: [],
+        leaderboardLoading: false,
+
+        // Valideyn Portalı
+        showParentModal: false,
+        parentQuery: '',
+        parentStudentData: null,
+        parentSearchLoading: false,
+        parentSearchError: '',
         currentUser: null,
         installPrompt: null,
 
@@ -1827,6 +2226,9 @@
         await this.loadClassAttendance();
         await this.loadClassGrades();
         await this.loadClassLessons();
+        await this.loadClassSummative();
+        await this.loadClassHomework();
+        await this.loadClassTimetable();
       },
 
       async loadClassStudents() {
@@ -2411,5 +2813,146 @@
     }
   }).mount('#app');
 </script>
+
+  <!-- ==================== MODAL: VALİDEYN PORTALI (GÖZƏTÇİ REJİMİ) ==================== -->
+  <div v-if="showParentModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-2xl w-full shadow-2xl border border-slate-100 relative max-h-[90vh] overflow-y-auto space-y-6">
+      <button @click="showParentModal = false" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+      
+      <div class="text-center">
+        <div class="w-14 h-14 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center text-3xl mx-auto shadow-sm">
+          👨‍👩‍👧
+        </div>
+        <h3 class="text-2xl font-black text-slate-900 mt-2">Valideyn Şəxsi Kabineti</h3>
+        <p class="text-xs text-slate-500 mt-1">Övladınızın istifadəçi adını və ya ad-soyadını daxil edərək gündəliyi, KSQ ballarını və davamiyyəti izləyin</p>
+      </div>
+
+      <!-- Search Input -->
+      <div class="flex gap-2">
+        <input type="text" v-model="parentQuery" @keyup.enter="searchParentStudent" placeholder="Şagirdin istifadəçi adı (məs. shagird_102) və ya ad-soyadı" class="flex-1 bg-white border border-slate-300 rounded-2xl px-4 py-3 text-xs sm:text-sm font-medium focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20">
+        <button @click="searchParentStudent" :disabled="parentSearchLoading" class="touch-btn px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-xs sm:text-sm font-bold shadow-md">
+          {{ parentSearchLoading ? 'Axtarılır...' : 'Axtar 🔍' }}
+        </button>
+      </div>
+
+      <div v-if="parentSearchError" class="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium text-center">
+        {{ parentSearchError }}
+      </div>
+
+      <!-- Result Card -->
+      <div v-if="parentStudentData" class="space-y-5 pt-2 border-t border-slate-100">
+        <!-- Student Info -->
+        <div class="bg-gradient-to-r from-amber-50 to-orange-50 p-5 rounded-2xl border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-200/70 px-2 py-0.5 rounded-full">Şagird</span>
+            <h4 class="text-xl font-black text-slate-900 mt-1">{{ parentStudentData.student.full_name }}</h4>
+            <p class="text-xs text-slate-600 mt-0.5">
+              Məktəb: <strong>{{ parentStudentData.student.school_name }}</strong> • Sinif: <strong>{{ parentStudentData.student.class_name }}</strong>
+            </p>
+          </div>
+          <div class="text-left sm:text-right">
+            <span class="text-xs text-slate-500">Sinif Rəhbəri:</span>
+            <p class="text-xs font-bold text-slate-800">{{ parentStudentData.student.head_teacher_name || 'Təyin olunmayıb' }}</p>
+          </div>
+        </div>
+
+        <!-- Attendance Pill -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 text-center">
+            <span class="text-[10px] text-slate-400 font-bold uppercase">Cəmi Gün</span>
+            <div class="text-lg font-black text-slate-800 mt-0.5">{{ parentStudentData.attendance.total_recorded }}</div>
+          </div>
+          <div class="bg-emerald-50 p-3 rounded-xl border border-emerald-200 text-center">
+            <span class="text-[10px] text-emerald-600 font-bold uppercase">İştirak</span>
+            <div class="text-lg font-black text-emerald-800 mt-0.5">{{ parentStudentData.attendance.present }} gün</div>
+          </div>
+          <div class="bg-rose-50 p-3 rounded-xl border border-rose-200 text-center">
+            <span class="text-[10px] text-rose-600 font-bold uppercase">Qaib (Q)</span>
+            <div class="text-lg font-black text-rose-800 mt-0.5">{{ parentStudentData.attendance.absent }} gün</div>
+          </div>
+          <div class="bg-blue-50 p-3 rounded-xl border border-blue-200 text-center">
+            <span class="text-[10px] text-blue-600 font-bold uppercase">Davamiyyət %</span>
+            <div class="text-lg font-black text-blue-800 mt-0.5">{{ parentStudentData.attendance.percentage }}%</div>
+          </div>
+        </div>
+
+        <!-- Recent KSQ Grades -->
+        <div class="space-y-2">
+          <h5 class="text-xs font-bold text-slate-900 uppercase tracking-wider">⭐ Son KSQ və BSQ Qiymətləri</h5>
+          <div v-if="parentStudentData.recent_grades.length === 0" class="text-xs text-slate-400 py-3 text-center bg-slate-50 rounded-xl">Hələlik qiymət daxil edilməyib.</div>
+          <div v-else class="divide-y divide-slate-100 bg-white border border-slate-200 rounded-2xl overflow-hidden">
+            <div v-for="g in parentStudentData.recent_grades" :key="g.date + g.subject + g.grade_type" class="p-3 flex items-center justify-between text-xs hover:bg-slate-50">
+              <div>
+                <span class="font-bold text-slate-800">{{ g.subject }}</span>
+                <span class="text-slate-400 ml-2">📅 {{ g.date }}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="uppercase text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{{ g.grade_type }}</span>
+                <span class="font-black text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">{{ g.score }} bal</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Active Homeworks -->
+        <div class="space-y-2">
+          <h5 class="text-xs font-bold text-slate-900 uppercase tracking-wider">📚 Aktiv Ev Tapşırıqları</h5>
+          <div v-if="parentStudentData.homeworks.length === 0" class="text-xs text-slate-400 py-3 text-center bg-slate-50 rounded-xl">Aktiv ev tapşırığı yoxdur.</div>
+          <div v-else class="space-y-2">
+            <div v-for="hw in parentStudentData.homeworks" :key="hw.id" class="p-3 rounded-2xl border text-xs flex items-center justify-between" :class="hw.status === 'completed' ? 'bg-emerald-50/50 border-emerald-200' : 'bg-white border-slate-200'">
+              <div>
+                <div class="font-bold text-slate-900">{{ hw.title }} ({{ hw.subject }})</div>
+                <div class="text-slate-500 text-[11px] mt-0.5">Təslim: 📅 {{ hw.due_date }}</div>
+              </div>
+              <span :class="hw.status === 'completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'" class="px-2.5 py-1 rounded-full font-bold text-[11px]">
+                {{ hw.status === 'completed' ? '✓ Yerinə yetirilib' : '⏳ Gözləyir' }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==================== MODAL: MƏKTƏBİN FƏXRİ LÖVHƏSİ (LEADERBOARD) ==================== -->
+  <div v-if="showLeaderboardModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-2xl w-full shadow-2xl border border-slate-100 relative max-h-[90vh] overflow-y-auto space-y-6">
+      <button @click="showLeaderboardModal = false" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+      
+      <div class="text-center">
+        <div class="w-16 h-16 rounded-3xl bg-amber-400 text-slate-950 flex items-center justify-center text-3xl mx-auto shadow-lg shadow-amber-400/30">
+          🏆
+        </div>
+        <h3 class="text-2xl font-black text-slate-900 mt-2">Məktəbin Fəxri Lövhəsi</h3>
+        <p class="text-xs text-slate-500 mt-1">Summativ qiymətləndirmə (KSQ/BSQ) üzrə ən yüksək nailiyyət göstərən şagirdlər</p>
+      </div>
+
+      <div v-if="leaderboardLoading" class="text-center py-10 text-slate-400 text-xs">Hesablanır...</div>
+      <div v-else-if="leaderboardData.length === 0" class="text-center py-10 text-slate-400 text-xs bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+        Hələlik heç bir şagirdin KSQ balı daxil edilməyib.
+      </div>
+      <div v-else class="space-y-3">
+        <div v-for="(lead, idx) in leaderboardData" :key="lead.student_id" class="p-4 rounded-2xl border flex items-center justify-between transition-all" :class="idx === 0 ? 'bg-gradient-to-r from-amber-50 via-white to-amber-50 border-amber-400 shadow-md' : (idx === 1 ? 'bg-gradient-to-r from-slate-50 via-white to-slate-50 border-slate-300' : (idx === 2 ? 'bg-gradient-to-r from-orange-50 via-white to-orange-50 border-orange-300' : 'bg-white border-slate-200'))">
+          <div class="flex items-center gap-3">
+            <span class="w-8 h-8 rounded-full flex items-center justify-center font-black text-sm" :class="idx === 0 ? 'bg-amber-400 text-slate-900' : (idx === 1 ? 'bg-slate-300 text-slate-800' : (idx === 2 ? 'bg-orange-300 text-orange-900' : 'bg-slate-100 text-slate-600'))">
+              {{ lead.badge }}
+            </span>
+            <div>
+              <h5 class="font-black text-slate-900 text-sm">{{ lead.full_name }}</h5>
+              <span class="text-xs text-slate-500 font-medium">{{ lead.class_name }} Sinfi • {{ lead.tier }}</span>
+            </div>
+          </div>
+          <div class="text-right">
+            <span class="text-lg font-black text-amber-700">{{ lead.avg_score }}</span>
+            <span class="text-xs text-slate-400 block -mt-1">orta bal</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
 </body>
 </html>
