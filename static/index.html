@@ -2205,6 +2205,199 @@
       }
     },
     methods: {
+
+      // ==================== SUMMATİV JURNAL METODLARI ====================
+      async loadClassSummative() {
+        if (!this.activeTeacherClass) return;
+        this.summativeLoading = true;
+        try {
+          const subj = this.activeTeacherClass.subject || (this.currentUser ? this.currentUser.subject : '');
+          const res = await fetch(`/api/classes/${this.activeTeacherClass.class_id}/summative-matrix?subject=${encodeURIComponent(subj)}`);
+          if (res.ok) {
+            this.summativeMatrix = await res.json();
+          }
+        } catch(e) {
+          this.showToast('Summativ jurnalı yüklənərkən xəta baş verdi', 'error');
+        } finally {
+          this.summativeLoading = false;
+        }
+      },
+
+      async updateSummativeScore(studentId, gradeType, newScore) {
+        if (!this.activeTeacherClass) return;
+        const subj = this.activeTeacherClass.subject || (this.currentUser ? this.currentUser.subject : '');
+        try {
+          const res = await fetch('/api/classes/summative-grade', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-User-Id': String(this.currentUser.id)
+            },
+            body: JSON.stringify({
+              class_id: this.activeTeacherClass.class_id,
+              subject: subj,
+              student_id: studentId,
+              grade_type: gradeType,
+              score: (newScore !== null && newScore !== undefined) ? String(newScore).trim() : ''
+            })
+          });
+          if (res.ok) {
+            await this.loadClassSummative();
+            this.showToast('Bal yadda saxlanıldı! ✅');
+          }
+        } catch(e) {}
+      },
+
+      printSummativeReport() {
+        window.print();
+      },
+
+      // ==================== EV TAPŞIRIQLARI METODLARI ====================
+      async loadClassHomework() {
+        if (!this.activeTeacherClass) return;
+        this.homeworkLoading = true;
+        try {
+          const subj = this.activeTeacherClass.subject || (this.currentUser ? this.currentUser.subject : '');
+          const res = await fetch(`/api/classes/${this.activeTeacherClass.class_id}/homework?subject=${encodeURIComponent(subj)}`);
+          if (res.ok) {
+            this.homeworkList = await res.json();
+          }
+        } catch(e) {
+        } finally {
+          this.homeworkLoading = false;
+        }
+      },
+
+      async submitHomework() {
+        if (!this.activeTeacherClass) return;
+        if (!this.newHomework.title || !this.newHomework.title.trim()) {
+          this.showToast('Tapşırığın başlığını yazın!', 'error');
+          return;
+        }
+        if (!this.newHomework.due_date) {
+          this.showToast('Təhvil tarixini (son günü) seçin!', 'error');
+          return;
+        }
+        try {
+          const subj = this.activeTeacherClass.subject || (this.currentUser ? this.currentUser.subject : '');
+          const res = await fetch('/api/homework', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-User-Id': String(this.currentUser.id)
+            },
+            body: JSON.stringify({
+              class_id: this.activeTeacherClass.class_id,
+              subject: subj,
+              title: this.newHomework.title.trim(),
+              description: (this.newHomework.description || '').trim(),
+              due_date: this.newHomework.due_date
+            })
+          });
+          const data = await res.json();
+          if (res.ok) {
+            this.showToast('Ev tapşırığı uğurla əlavə edildi! 📚');
+            this.newHomework = { title: '', description: '', due_date: '' };
+            await this.loadClassHomework();
+          } else {
+            this.showToast(data.detail || 'Xəta baş verdi', 'error');
+          }
+        } catch(e) {
+          this.showToast('Ev tapşırığı əlavə edilərkən xəta baş verdi', 'error');
+        }
+      },
+
+      async deleteHomework(hwId) {
+        if (!confirm('Bu ev tapşırığını silmək istəyirsiniz?')) return;
+        try {
+          const res = await fetch(`/api/homework/${hwId}`, { method: 'DELETE' });
+          if (res.ok) {
+            this.showToast('Ev tapşırığı silindi');
+            await this.loadClassHomework();
+          }
+        } catch(e) {}
+      },
+
+      async toggleStudentHomework(hwId) {
+        try {
+          const res = await fetch(`/api/homework/${hwId}/toggle-status`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-User-Id': String(this.currentUser.id)
+            },
+            body: JSON.stringify({ student_id: this.currentUser.id })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            this.showToast(data.status === 'completed' ? 'Tapşırıq bitirildi! 🎉' : 'Status dəyişdirildi');
+            if (this.currentView === 'student') {
+              await this.loadStudentDashboard();
+            }
+          }
+        } catch(e) {}
+      },
+
+      // ==================== DƏRS CƏDVƏLİ METODLARI ====================
+      async loadClassTimetable() {
+        if (!this.activeTeacherClass) return;
+        this.timetableLoading = true;
+        try {
+          const res = await fetch(`/api/classes/${this.activeTeacherClass.class_id}/timetable`);
+          if (res.ok) {
+            const data = await res.json();
+            this.classTimetable = data;
+            const newMap = {};
+            for (let d = 1; d <= 5; d++) {
+              for (let o = 1; o <= 6; o++) {
+                newMap[`${d}_${o}`] = { subject: '', room: '' };
+              }
+            }
+            (data.slots || []).forEach(s => {
+              newMap[`${s.day_of_week}_${s.lesson_order}`] = {
+                subject: s.subject || '',
+                room: s.room || ''
+              };
+            });
+            this.timetableEditMap = newMap;
+          }
+        } catch(e) {
+        } finally {
+          this.timetableLoading = false;
+        }
+      },
+
+      async saveClassTimetable() {
+        if (!this.activeTeacherClass) return;
+        const slots = [];
+        for (let day = 1; day <= 5; day++) {
+          for (let ord = 1; ord <= 6; ord++) {
+            const item = this.timetableEditMap[`${day}_${ord}`];
+            if (item && item.subject && item.subject.trim()) {
+              slots.push({
+                day_of_week: day,
+                lesson_order: ord,
+                subject: item.subject.trim(),
+                room: (item.room || '').trim()
+              });
+            }
+          }
+        }
+        try {
+          const res = await fetch(`/api/classes/${this.activeTeacherClass.class_id}/timetable`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ class_id: this.activeTeacherClass.class_id, slots: slots })
+          });
+          if (res.ok) {
+            this.showToast('Dərs cədvəli uğurla yadda saxlanıldı! 🗓️');
+            await this.loadClassTimetable();
+          }
+        } catch(e) {
+          this.showToast('Cədvəl yadda saxlanılarkən xəta baş verdi', 'error');
+        }
+      },
+
       // ----------------- VALİDEYN PORTALI METODLARI -----------------
       openParentModal() {
         this.showParentModal = true;
@@ -2594,6 +2787,9 @@
         await this.loadClassAttendance();
         await this.loadClassGrades();
         await this.loadClassLessons();
+        await this.loadClassSummative();
+        await this.loadClassHomework();
+        await this.loadClassTimetable();
         await this.loadClassSummative();
         await this.loadClassHomework();
         await this.loadClassTimetable();
