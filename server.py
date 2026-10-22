@@ -1552,44 +1552,7 @@ def save_class_timetable(class_id: int, req: SaveTimetableRequest):
     conn.close()
     return {"success": True, "message": "Dərs cədvəli yadda saxlanıldı"}
 
-# ----------------- FƏXRİ LÖVHƏ VƏ ŞAGİRD REYTİNQİ -----------------
 
-@app.get("/api/schools/{school_id}/leaderboard")
-def get_school_leaderboard(school_id: int):
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-
-    cursor.execute("""
-    SELECT u.id, u.full_name, u.username, c.name as class_name, c.id as class_id,
-           AVG(CAST(g.score AS REAL)) as avg_score,
-           COUNT(g.id) as score_count
-    FROM users u
-    JOIN classes c ON u.class_id = c.id
-    JOIN grades g ON g.student_id = u.id
-    WHERE u.school_id = ? AND u.role = 'student' AND u.status = 'approved'
-      AND g.grade_type IN ('ksq1', 'ksq2', 'ksq3', 'ksq4', 'ksq5', 'ksq6', 'bsq1', 'bsq2')
-    GROUP BY u.id
-    HAVING score_count >= 1
-    ORDER BY avg_score DESC
-    LIMIT 25
-    """, (school_id,))
-    top_students = []
-    for r in cursor.fetchall():
-        s_score = round(r["avg_score"], 1)
-        tier = "Əlaçı (Qızıl Medal)" if s_score >= 89.5 else ("Zərbəçi (Gümüş Nişan)" if s_score >= 70.5 else "Fəal Şagird")
-        badge = "🥇" if s_score >= 89.5 else ("🥈" if s_score >= 70.5 else "🥉")
-        top_students.append({
-            "student_id": r["id"],
-            "full_name": r["full_name"],
-            "class_name": r["class_name"],
-            "avg_score": s_score,
-            "tier": tier,
-            "badge": badge
-        })
-
-    conn.close()
-    return {"school_id": school_id, "leaders": top_students}
 
 # ----------------- VALİDEYN PORTALI VƏ ŞAGİRD SORGUSU -----------------
 
