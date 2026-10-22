@@ -112,6 +112,13 @@
             <span>🔑</span>
             <span class="hidden md:inline">Şifrəni Dəyiş</span>
           </button>
+          <button v-if="currentUser.role === 'director'" 
+                  @click="deleteOwnDirectorAccount" 
+                  title="Hesabımı Sil" 
+                  class="touch-btn px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold border border-rose-200 transition-colors flex items-center gap-1 shadow-sm">
+            <span>🗑️</span>
+            <span class="hidden md:inline">Hesabı Sil</span>
+          </button>
           <button @click="logout" title="Çıxış" 
                   class="touch-btn px-3 py-1.5 rounded-xl bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs font-bold border border-rose-200 transition-colors">
             Çıxış
@@ -326,6 +333,14 @@
                 class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap">
           🏛️ Məktəblər və Köməkçilər
         </button>
+        <button v-if="currentUser.role === 'admin'" @click="adminTab = 'directors'" 
+                :class="adminTab === 'directors' ? 'border-purple-600 text-purple-700 font-bold bg-white' : 'border-transparent text-slate-500'" 
+                class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap flex items-center gap-1.5">
+          <span>🏛️ Direktorlar</span>
+          <span v-if="adminDirectors && adminDirectors.length > 0" class="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-bold">
+            {{ adminDirectors.length }}
+          </span>
+        </button>
         <button @click="adminTab = 'teachers'" 
                 :class="adminTab === 'teachers' ? 'border-purple-600 text-purple-700 font-bold bg-white' : 'border-transparent text-slate-500'" 
                 class="px-4 py-2.5 border-b-2 text-xs sm:text-sm rounded-t-xl transition-colors whitespace-nowrap">
@@ -363,8 +378,8 @@
             <div>
               <div class="flex items-center gap-2 mb-1">
                 <span class="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider" 
-                      :class="req.role === 'teacher' ? 'bg-violet-100 text-violet-800' : 'bg-sky-100 text-sky-800'">
-                  {{ req.role === 'teacher' ? 'Müəllim Müraciəti' : 'Şagird Müraciəti' }}
+                      :class="req.role === 'director' ? 'bg-amber-100 text-amber-900 border border-amber-300' : (req.role === 'teacher' ? 'bg-violet-100 text-violet-800' : 'bg-sky-100 text-sky-800')">
+                  {{ req.role === 'director' ? '🏛️ Direktor Müraciəti' : (req.role === 'teacher' ? '👩‍🏫 Müəllim Müraciəti' : '👨‍🎓 Şagird Müraciəti') }}
                 </span>
                 <span class="text-xs font-bold text-brand-700 bg-brand-50 px-2 py-0.5 rounded border border-brand-200">
                   📍 {{ req.school_name || 'Sumqayıt 31' }}
@@ -383,7 +398,7 @@
                 ✅ İcazə Ver (Təsdiqlə)
               </button>
               <button @click="rejectUser(req.id)" class="touch-btn px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-bold border border-rose-200">
-                ❌ Rədd Et
+                ❌ Rədd Et (Sil)
               </button>
             </div>
           </div>
@@ -477,10 +492,18 @@
                 </td>
                 <td class="py-3 px-4 font-semibold text-slate-600">{{ s.region }}</td>
                 <td class="py-3 px-4">
-                  <span v-if="s.director_name" class="font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-xl text-xs flex items-center gap-1 w-max">
-                    <span>🏛️</span>
-                    <span>{{ s.director_name }}</span>
-                  </span>
+                  <div v-if="s.director_name" class="flex items-center gap-1.5 flex-wrap">
+                    <span class="font-bold text-emerald-800 bg-emerald-100 px-2.5 py-1 rounded-xl text-xs flex items-center gap-1">
+                      <span>🏛️</span>
+                      <span>{{ s.director_name }}</span>
+                    </span>
+                    <button v-if="currentUser.role === 'admin' && s.director_id" 
+                            @click="adminDeleteDirectorById(s.director_id, s.director_name)" 
+                            title="Direktoru Məktəbdən Sil" 
+                            class="touch-btn px-2 py-0.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-[11px] font-bold border border-rose-200">
+                      🗑️ Sil
+                    </button>
+                  </div>
                   <span v-else class="text-slate-400 text-xs italic">Təyin olunmayıb</span>
                 </td>
                 <td class="py-3 px-4 font-bold text-violet-700">{{ s.teacher_count }} nəfər</td>
@@ -495,6 +518,64 @@
                   <button @click="openAssignModeratorModal(s)" class="touch-btn px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold shadow-sm">
                     + Köməkçi Təyin Et
                   </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB: DİREKTORLAR İDARƏSİ -->
+      <div v-if="adminTab === 'directors' && currentUser.role === 'admin'" class="space-y-5">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-base font-black text-slate-900">🏛️ Məktəb Direktorları Siyahısı ({{ adminDirectors.length }})</h3>
+            <p class="text-xs text-slate-500">Bütün təsdiqlənmiş və qeydiyyatdan keçmiş məktəb direktorları.</p>
+          </div>
+        </div>
+
+        <div v-if="adminDirectors.length === 0" class="text-center py-12 bg-white rounded-3xl border border-dashed border-slate-300">
+          <div class="w-12 h-12 rounded-2xl bg-slate-50 text-slate-400 flex items-center justify-center mx-auto mb-2 text-xl">🏛️</div>
+          <p class="text-slate-600 font-bold text-sm">Hazırda sistemdə heç bir direktor qeydiyyatda deyil.</p>
+        </div>
+
+        <div v-else class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead>
+              <tr class="border-b border-slate-200 text-slate-400 uppercase font-bold text-[11px] bg-slate-50/50">
+                <th class="py-3 px-4">Direktor</th>
+                <th class="py-3 px-4">Məktəb</th>
+                <th class="py-3 px-4">Bölgə</th>
+                <th class="py-3 px-4">Əlaqə Nömrəsi</th>
+                <th class="py-3 px-4">Status</th>
+                <th class="py-3 px-4 text-right">Əməliyyatlar</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              <tr v-for="d in adminDirectors" :key="d.id" class="hover:bg-slate-50">
+                <td class="py-3 px-4 font-bold text-slate-900">
+                  <div class="flex items-center gap-2">
+                    <span class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-black">🏛️</span>
+                    <div>
+                      <div class="font-black text-slate-900">{{ d.full_name }}</div>
+                      <div class="text-[11px] text-slate-400">@{{ d.username }}</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="py-3 px-4 font-medium text-slate-700">{{ d.school_name || 'Təyin olunmayıb' }}</td>
+                <td class="py-3 px-4 font-semibold text-slate-600">{{ d.region || '—' }}</td>
+                <td class="py-3 px-4 font-semibold text-slate-600">{{ d.phone || '—' }}</td>
+                <td class="py-3 px-4">
+                  <span v-if="d.status === 'approved'" class="px-2.5 py-0.5 rounded-full font-bold bg-emerald-100 text-emerald-800 text-[10px]">
+                    ✅ Təsdiqlənib
+                  </span>
+                  <span v-else class="px-2.5 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 text-[10px]">
+                    ⏳ Təsdiq Gözləyir
+                  </span>
+                </td>
+                <td class="py-3 px-4 text-right space-x-2">
+                  <button @click="adminResetDirectorPass(d)" class="touch-btn text-xs font-bold text-blue-600 hover:underline">Şifrə Dəyiş</button>
+                  <button @click="adminDeleteDirector(d)" class="touch-btn text-xs font-bold text-rose-600 hover:underline">🗑️ Sil</button>
                 </td>
               </tr>
             </tbody>
@@ -2148,6 +2229,7 @@
         selectedRegionFilter: '',
         adminOverview: { teachers_count: 0, students_count: 0, pending_count: 0, classes_count: 0, total_schools: 0, total_moderators: 0 },
         adminPendingRequests: [],
+        adminDirectors: [],
         adminSchoolsSummary: [],
         adminTeachers: [],
         adminStudents: [],
@@ -2980,6 +3062,7 @@
         await this.loadAdminPendingRequests();
         await this.loadAdminPasswordResets();
         await this.loadAdminSchoolsSummary();
+        await this.loadAdminDirectors();
         await this.loadAdminTeachers();
         await this.loadAdminStudents();
         await this.loadAllClasses();
@@ -3178,6 +3261,87 @@
           const res = await fetch(url);
           this.adminSchoolsSummary = await res.json();
         } catch(e) {}
+      },
+
+      async loadAdminDirectors() {
+        try {
+          const sId = this.currentUser && (this.currentUser.role === 'director' || this.currentUser.is_moderator) ? this.currentUser.school_id : this.selectedAdminSchoolId;
+          const url = sId ? `/api/admin/directors?school_id=${sId}` : '/api/admin/directors';
+          const res = await fetch(url);
+          this.adminDirectors = await res.json();
+        } catch(e) {
+          this.adminDirectors = [];
+        }
+      },
+
+      async adminDeleteDirector(d) {
+        if (!confirm(`"${d.full_name}" (@${d.username}) adlı direktoru sistemdən tamamilə silmək istədiyinizə əminsiniz?`)) return;
+        try {
+          const res = await fetch(`/api/admin/directors/${d.id}`, { method: 'DELETE' });
+          if (res.ok) {
+            this.showToast('Direktor hesabı silindi! 🗑️');
+            await this.loadAdminData();
+          } else {
+            const err = await res.json();
+            this.showToast(err.detail || 'Xəta baş verdi', 'error');
+          }
+        } catch(e) {
+          this.showToast('Serverlə əlaqə xətası', 'error');
+        }
+      },
+
+      async adminDeleteDirectorById(directorId, directorName) {
+        if (!confirm(`"${directorName}" direktorunu bu məktəbdən silmək istəyirsiniz?`)) return;
+        try {
+          const res = await fetch(`/api/admin/directors/${directorId}`, { method: 'DELETE' });
+          if (res.ok) {
+            this.showToast('Direktor hesabı silindi! 🗑️');
+            await this.loadAdminData();
+          } else {
+            const err = await res.json();
+            this.showToast(err.detail || 'Xəta baş verdi', 'error');
+          }
+        } catch(e) {
+          this.showToast('Serverlə əlaqə xətası', 'error');
+        }
+      },
+
+      async adminResetDirectorPass(d) {
+        const pass = prompt(`"${d.full_name}" direktoru üçün yeni şifrə təyin edin:`);
+        if (!pass) return;
+        try {
+          const res = await fetch(`/api/admin/directors/${d.id}/reset-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ new_password: pass })
+          });
+          if (res.ok) {
+            this.showToast('Direktorun şifrəsi yeniləndi! ✅');
+          } else {
+            this.showToast('Xəta baş verdi', 'error');
+          }
+        } catch(e) {
+          this.showToast('Serverlə əlaqə xətası', 'error');
+        }
+      },
+
+      async deleteOwnDirectorAccount() {
+        if (!confirm('Direktor hesabınızı sistemdən tamamilə silmək istədiyinizə əminsiniz? Bu əməliyyat geri qaytarıla bilməz!')) return;
+        try {
+          const res = await fetch('/api/auth/delete-own-account', {
+            method: 'DELETE',
+            headers: { 'X-User-Id': String(this.currentUser.id) }
+          });
+          const data = await res.json();
+          if (res.ok) {
+            this.showToast('Direktor hesabı uğurla silindi! 🗑️');
+            this.logout();
+          } else {
+            this.showToast(data.detail || 'Xəta baş verdi', 'error');
+          }
+        } catch(e) {
+          this.showToast('Serverlə əlaqə xətası', 'error');
+        }
       },
 
       async loadAdminTeachers() {
