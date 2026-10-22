@@ -16,6 +16,54 @@ STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 def hash_pass(password: str) -> str:
     return hashlib.sha256(password.encode('utf-8')).hexdigest()
 
+
+def ensure_all_tables():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS homework (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        class_id INTEGER NOT NULL,
+        teacher_id INTEGER NOT NULL,
+        subject TEXT NOT NULL,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        due_date TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (class_id) REFERENCES classes(id),
+        FOREIGN KEY (teacher_id) REFERENCES users(id)
+    )
+    """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS student_homework_status (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        homework_id INTEGER NOT NULL,
+        student_id INTEGER NOT NULL,
+        status TEXT DEFAULT 'pending',
+        completed_at TIMESTAMP,
+        FOREIGN KEY (homework_id) REFERENCES homework(id) ON DELETE CASCADE,
+        FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE (homework_id, student_id)
+    )
+    """)
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS timetable (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        class_id INTEGER NOT NULL,
+        day_of_week INTEGER NOT NULL,
+        lesson_order INTEGER NOT NULL,
+        subject TEXT NOT NULL,
+        teacher_name TEXT DEFAULT '',
+        room TEXT DEFAULT '',
+        FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE,
+        UNIQUE (class_id, day_of_week, lesson_order)
+    )
+    """)
+    conn.commit()
+    conn.close()
+
+ensure_all_tables()
+
 app = FastAPI(title="E-məktəb - Respublika Elektron Məktəb Portalı")
 
 app.add_middleware(
@@ -128,6 +176,37 @@ class RegisterDirectorRequest(BaseModel):
 class AssignModeratorRequest(BaseModel):
     user_id: int
     school_id: int
+
+class SaveSummativeGradeRequest(BaseModel):
+    class_id: int
+    subject: str
+    student_id: int
+    grade_type: str  # ksq1..ksq6, bsq1, bsq2
+    score: str       # 0 - 100 or empty
+    date: Optional[str] = None
+    comment: Optional[str] = ""
+
+class CreateHomeworkRequest(BaseModel):
+    class_id: int
+    subject: str
+    title: str
+    description: str
+    due_date: str
+
+class ToggleHomeworkRequest(BaseModel):
+    student_id: Optional[int] = None
+
+class TimetableSlot(BaseModel):
+    day_of_week: int
+    lesson_order: int
+    subject: str
+    teacher_name: Optional[str] = ""
+    room: Optional[str] = ""
+
+class SaveTimetableRequest(BaseModel):
+    class_id: int
+    slots: List[TimetableSlot]
+
 
 # ----------------- SCHOOLS DIRECTORY -----------------
 
@@ -991,6 +1070,27 @@ def get_student_dashboard(student_id: int):
     """, (student_id,))
     my_attendance = [dict(a) for a in cursor.fetchall()]
 
+    cursor.execute("""
+    SELECT h.id, h.subject, h.title, h.description, h.due_date, u.full_name as teacher_name,
+           (SELECT status FROM student_homework_status shs WHERE shs.homework_id = h.id AND shs.student_id = ?) as status
+    FROM homework h
+    LEFT JOIN users u ON h.teacher_id = u.id
+    WHERE h.class_id = ?
+    ORDER BY h.due_date DESC, h.id DESC
+    LIMIT 30
+    """, (student_id, class_id))
+    my_homework = [dict(h) for h in cursor.fetchall()]
+    for hw in my_homework:
+        hw["is_completed"] = (hw.get("status") == "completed")
+
+    cursor.execute("""
+    SELECT day_of_week, lesson_order, subject, teacher_name, room
+    FROM timetable
+    WHERE class_id = ?
+    ORDER BY day_of_week ASC, lesson_order ASC
+    """, (class_id,))
+    my_timetable = [dict(r) for r in cursor.fetchall()]
+
     conn.close()
     return {
         "student": dict(student),
@@ -1001,7 +1101,10 @@ def get_student_dashboard(student_id: int):
         "teachers": teachers,
         "lessons": lessons,
         "grades": my_grades,
-        "attendance": my_attendance
+        "attendance": my_attendance,
+        "homework": my_homework,
+        "timetable": my_timetable,
+        "bells": BELL_SCHEDULE
     }
 
 # ----------------- JOURNAL ACTIONS -----------------
@@ -1126,6 +1229,454 @@ def list_classes(school_id: Optional[int] = None):
     rows = [dict(r) for r in cursor.fetchall()]
     conn.close()
     return rows
+
+
+# ----------------- KSQ & BSQ SUMMATİV JURNAL SİSTEMİ -----------------
+
+def calc_grade_val(score_val):
+    if score_val is None:
+        return None
+    try:
+        s = float(score_val)
+        if s >= 80.5:
+            return 5
+        elif s >= 60.5:
+            return 4
+        elif s >= 30.5:
+            return 3
+        else:
+            return 2
+    except (ValueError, TypeError):
+        return None
+
+@app.get("/api/classes/{class_id}/summative-matrix")
+def get_summative_matrix(class_id: int, subject: str):
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    SELECT id, full_name, username FROM users
+    WHERE class_id = ? AND role = 'student' AND status = 'approved'
+    ORDER BY full_name ASC
+    """, (class_id,))
+    students = [dict(s) for s in cursor.fetchall()]
+
+    cursor.execute("""
+    SELECT student_id, grade_type, score, date, comment
+    FROM grades
+    WHERE class_id = ? AND subject = ? AND grade_type IN (
+        'ksq1', 'ksq2', 'ksq3', 'ksq4', 'ksq5', 'ksq6', 'bsq1', 'bsq2'
+    )
+    """, (class_id, subject))
+    raw_grades = cursor.fetchall()
+    conn.close()
+
+    # Index grades by (student_id, grade_type)
+    grades_map = {}
+    for r in raw_grades:
+        grades_map[(r["student_id"], r["grade_type"])] = {
+            "score": r["score"],
+            "date": r["date"],
+            "comment": r["comment"]
+        }
+
+    matrix_students = []
+    sem1_grades_list = []
+    sem2_grades_list = []
+    all_scores_list = []
+
+    for s in students:
+        sid = s["id"]
+        row = {
+            "student_id": sid,
+            "full_name": s["full_name"],
+            "username": s["username"],
+            "ksq1": None, "ksq2": None, "ksq3": None,
+            "ksq4": None, "ksq5": None, "ksq6": None,
+            "bsq1": None, "bsq2": None,
+            "sem1_score": None, "sem1_grade": None,
+            "sem2_score": None, "sem2_grade": None,
+            "annual_score": None, "annual_grade": None
+        }
+
+        for gt in ["ksq1", "ksq2", "ksq3", "ksq4", "ksq5", "ksq6", "bsq1", "bsq2"]:
+            if (sid, gt) in grades_map:
+                try:
+                    val = float(grades_map[(sid, gt)]["score"])
+                    row[gt] = val
+                    all_scores_list.append(val)
+                except (ValueError, TypeError):
+                    row[gt] = None
+
+        # Calculate Sem 1
+        sem1_ksqs = [row[k] for k in ["ksq1", "ksq2", "ksq3"] if row[k] is not None]
+        bsq1 = row["bsq1"]
+        if sem1_ksqs:
+            ksq1_avg = sum(sem1_ksqs) / len(sem1_ksqs)
+            if bsq1 is not None:
+                row["sem1_score"] = round(ksq1_avg * 0.40 + bsq1 * 0.60, 1)
+            else:
+                row["sem1_score"] = round(ksq1_avg, 1)
+            row["sem1_grade"] = calc_grade_val(row["sem1_score"])
+            sem1_grades_list.append(row["sem1_grade"])
+        elif bsq1 is not None:
+            row["sem1_score"] = round(bsq1, 1)
+            row["sem1_grade"] = calc_grade_val(row["sem1_score"])
+            sem1_grades_list.append(row["sem1_grade"])
+
+        # Calculate Sem 2
+        sem2_ksqs = [row[k] for k in ["ksq4", "ksq5", "ksq6"] if row[k] is not None]
+        bsq2 = row["bsq2"]
+        if sem2_ksqs:
+            ksq2_avg = sum(sem2_ksqs) / len(sem2_ksqs)
+            if bsq2 is not None:
+                row["sem2_score"] = round(ksq2_avg * 0.40 + bsq2 * 0.60, 1)
+            else:
+                row["sem2_score"] = round(ksq2_avg, 1)
+            row["sem2_grade"] = calc_grade_val(row["sem2_score"])
+            sem2_grades_list.append(row["sem2_grade"])
+        elif bsq2 is not None:
+            row["sem2_score"] = round(bsq2, 1)
+            row["sem2_grade"] = calc_grade_val(row["sem2_score"])
+            sem2_grades_list.append(row["sem2_grade"])
+
+        # Annual (İllik)
+        if row["sem1_score"] is not None and row["sem2_score"] is not None:
+            row["annual_score"] = round((row["sem1_score"] + row["sem2_score"]) / 2, 1)
+            row["annual_grade"] = calc_grade_val(row["annual_score"])
+        elif row["sem1_score"] is not None:
+            row["annual_score"] = row["sem1_score"]
+            row["annual_grade"] = row["sem1_grade"]
+        elif row["sem2_score"] is not None:
+            row["annual_score"] = row["sem2_score"]
+            row["annual_grade"] = row["sem2_grade"]
+
+        matrix_students.append(row)
+
+    # Class-level analytics
+    total_st = len(students)
+    rated_students = [r for r in matrix_students if r["annual_grade"] is not None or r["sem1_grade"] is not None]
+    graded_count = len(rated_students)
+    quality_count = sum(1 for r in rated_students if (r["annual_grade"] or r["sem1_grade"]) in [4, 5])
+    success_count = sum(1 for r in rated_students if (r["annual_grade"] or r["sem1_grade"]) in [3, 4, 5])
+
+    quality_pct = round((quality_count / graded_count * 100), 1) if graded_count > 0 else 0.0
+    success_pct = round((success_count / graded_count * 100), 1) if graded_count > 0 else 0.0
+    avg_score = round(sum(all_scores_list) / len(all_scores_list), 1) if all_scores_list else 0.0
+
+    return {
+        "students": matrix_students,
+        "stats": {
+            "total_students": total_st,
+            "graded_count": graded_count,
+            "quality_pct": quality_pct,
+            "success_pct": success_pct,
+            "average_score": avg_score
+        }
+    }
+
+@app.post("/api/classes/summative-grade")
+def save_summative_grade(req: SaveSummativeGradeRequest, user_id: int = Header(..., alias="X-User-Id")):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    grade_date = req.date or date.today().isoformat()
+    clean_score = req.score.strip() if req.score else ""
+
+    if not clean_score:
+        # Delete if emptied
+        cursor.execute("""
+        DELETE FROM grades 
+        WHERE class_id = ? AND subject = ? AND student_id = ? AND grade_type = ?
+        """, (req.class_id, req.subject, req.student_id, req.grade_type))
+    else:
+        # Check if exists
+        cursor.execute("""
+        SELECT id FROM grades 
+        WHERE class_id = ? AND subject = ? AND student_id = ? AND grade_type = ?
+        """, (req.class_id, req.subject, req.student_id, req.grade_type))
+        row = cursor.fetchone()
+        if row:
+            cursor.execute("""
+            UPDATE grades 
+            SET score = ?, date = ?, teacher_id = ?, comment = ?
+            WHERE id = ?
+            """, (clean_score, grade_date, user_id, req.comment or "", row[0]))
+        else:
+            cursor.execute("""
+            INSERT INTO grades (class_id, teacher_id, subject, student_id, date, grade_type, score, comment)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (req.class_id, user_id, req.subject, req.student_id, grade_date, req.grade_type, clean_score, req.comment or ""))
+
+    conn.commit()
+    conn.close()
+    return {"success": True, "message": "Summativ bal yadda saxlanıldı"}
+
+# ----------------- EV TAPŞIRIQLARI (HOMEWORK) SİSTEMİ -----------------
+
+@app.get("/api/classes/{class_id}/homework")
+def get_class_homework(class_id: int, student_id: Optional[int] = None, subject: Optional[str] = None):
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    query = """
+    SELECT h.id, h.class_id, h.teacher_id, h.subject, h.title, h.description, h.due_date, h.created_at,
+           u.full_name as teacher_name,
+           (SELECT COUNT(*) FROM student_homework_status shs WHERE shs.homework_id = h.id AND shs.status = 'completed') as completed_count
+    FROM homework h
+    LEFT JOIN users u ON h.teacher_id = u.id
+    WHERE h.class_id = ?
+    """
+    params = [class_id]
+    if subject:
+        query += " AND h.subject = ?"
+        params.append(subject)
+    query += " ORDER BY h.due_date DESC, h.id DESC"
+
+    cursor.execute(query, params)
+    homeworks = [dict(h) for h in cursor.fetchall()]
+
+    if student_id:
+        cursor.execute("""
+        SELECT homework_id, status FROM student_homework_status
+        WHERE student_id = ?
+        """, (student_id,))
+        statuses = {r["homework_id"]: r["status"] for r in cursor.fetchall()}
+        for hw in homeworks:
+            hw["is_completed"] = (statuses.get(hw["id"]) == "completed")
+    else:
+        for hw in homeworks:
+            hw["is_completed"] = False
+
+    conn.close()
+    return homeworks
+
+@app.post("/api/homework")
+def create_homework(req: CreateHomeworkRequest, user_id: int = Header(..., alias="X-User-Id")):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+    INSERT INTO homework (class_id, teacher_id, subject, title, description, due_date)
+    VALUES (?, ?, ?, ?, ?, ?)
+    """, (req.class_id, user_id, req.subject, req.title.strip(), req.description.strip(), req.due_date))
+    hw_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return {"success": True, "homework_id": hw_id, "message": "Ev tapşırığı uğurla əlavə edildi"}
+
+@app.delete("/api/homework/{homework_id}")
+def delete_homework(homework_id: int):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM student_homework_status WHERE homework_id = ?", (homework_id,))
+    cursor.execute("DELETE FROM homework WHERE id = ?", (homework_id,))
+    conn.commit()
+    conn.close()
+    return {"success": True, "message": "Ev tapşırığı silindi"}
+
+@app.post("/api/homework/{homework_id}/toggle-status")
+def toggle_homework_status(homework_id: int, req: ToggleHomeworkRequest, user_id: int = Header(..., alias="X-User-Id")):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    st_id = req.student_id or user_id
+
+    cursor.execute("""
+    SELECT id, status FROM student_homework_status
+    WHERE homework_id = ? AND student_id = ?
+    """, (homework_id, st_id))
+    row = cursor.fetchone()
+
+    if row:
+        new_status = "pending" if row[1] == "completed" else "completed"
+        cursor.execute("""
+        UPDATE student_homework_status 
+        SET status = ?, completed_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        """, (new_status, row[0]))
+    else:
+        new_status = "completed"
+        cursor.execute("""
+        INSERT INTO student_homework_status (homework_id, student_id, status, completed_at)
+        VALUES (?, ?, 'completed', CURRENT_TIMESTAMP)
+        """, (homework_id, st_id))
+
+    conn.commit()
+    conn.close()
+    return {"success": True, "status": new_status}
+
+# ----------------- HƏFTƏLİK DƏRS CƏDVƏLİ VƏ ZƏNGLƏR -----------------
+
+BELL_SCHEDULE = [
+    {"order": 1, "start": "08:30", "end": "09:15", "break": "10 dəqiqə"},
+    {"order": 2, "start": "09:25", "end": "10:10", "break": "10 dəqiqə"},
+    {"order": 3, "start": "10:20", "end": "11:05", "break": "20 dəqiqə (Böyük tənəffüs)"},
+    {"order": 4, "start": "11:25", "end": "12:10", "break": "10 dəqiqə"},
+    {"order": 5, "start": "12:20", "end": "13:05", "break": "10 dəqiqə"},
+    {"order": 6, "start": "13:15", "end": "14:00", "break": "5 dəqiqə"},
+    {"order": 7, "start": "14:05", "end": "14:50", "break": "Dərslər bitir"}
+]
+
+@app.get("/api/classes/{class_id}/timetable")
+def get_class_timetable(class_id: int):
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    cursor.execute("""
+    SELECT id, day_of_week, lesson_order, subject, teacher_name, room
+    FROM timetable
+    WHERE class_id = ?
+    ORDER BY day_of_week ASC, lesson_order ASC
+    """, (class_id,))
+    slots = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return {
+        "class_id": class_id,
+        "bells": BELL_SCHEDULE,
+        "slots": slots
+    }
+
+@app.post("/api/classes/{class_id}/timetable")
+def save_class_timetable(class_id: int, req: SaveTimetableRequest):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM timetable WHERE class_id = ?", (class_id,))
+    for s in req.slots:
+        if s.subject.strip():
+            cursor.execute("""
+            INSERT INTO timetable (class_id, day_of_week, lesson_order, subject, teacher_name, room)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """, (class_id, s.day_of_week, s.lesson_order, s.subject.strip(), (s.teacher_name or "").strip(), (s.room or "").strip()))
+    conn.commit()
+    conn.close()
+    return {"success": True, "message": "Dərs cədvəli yadda saxlanıldı"}
+
+# ----------------- FƏXRİ LÖVHƏ VƏ ŞAGİRD REYTİNQİ -----------------
+
+@app.get("/api/schools/{school_id}/leaderboard")
+def get_school_leaderboard(school_id: int):
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    cursor.execute("""
+    SELECT u.id, u.full_name, u.username, c.name as class_name, c.id as class_id,
+           AVG(CAST(g.score AS REAL)) as avg_score,
+           COUNT(g.id) as score_count
+    FROM users u
+    JOIN classes c ON u.class_id = c.id
+    JOIN grades g ON g.student_id = u.id
+    WHERE u.school_id = ? AND u.role = 'student' AND u.status = 'approved'
+      AND g.grade_type IN ('ksq1', 'ksq2', 'ksq3', 'ksq4', 'ksq5', 'ksq6', 'bsq1', 'bsq2')
+    GROUP BY u.id
+    HAVING score_count >= 1
+    ORDER BY avg_score DESC
+    LIMIT 25
+    """, (school_id,))
+    top_students = []
+    for r in cursor.fetchall():
+        s_score = round(r["avg_score"], 1)
+        tier = "Əlaçı (Qızıl Medal)" if s_score >= 89.5 else ("Zərbəçi (Gümüş Nişan)" if s_score >= 70.5 else "Fəal Şagird")
+        badge = "🥇" if s_score >= 89.5 else ("🥈" if s_score >= 70.5 else "🥉")
+        top_students.append({
+            "student_id": r["id"],
+            "full_name": r["full_name"],
+            "class_name": r["class_name"],
+            "avg_score": s_score,
+            "tier": tier,
+            "badge": badge
+        })
+
+    conn.close()
+    return {"school_id": school_id, "leaders": top_students}
+
+# ----------------- VALİDEYN PORTALI VƏ ŞAGİRD SORGUSU -----------------
+
+@app.get("/api/parent/student-lookup")
+def parent_student_lookup(query: str, school_id: Optional[int] = None):
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+
+    q_clean = query.strip()
+    sql = """
+    SELECT u.id, u.full_name, u.username, u.class_id, u.school_id, c.name as class_name,
+           s.name as school_name, t_head.full_name as head_teacher_name
+    FROM users u
+    LEFT JOIN schools s ON u.school_id = s.id
+    LEFT JOIN classes c ON u.class_id = c.id
+    LEFT JOIN users t_head ON t_head.class_head_id = c.id
+    WHERE u.role = 'student' AND u.status = 'approved'
+      AND (u.username = ? OR LOWER(u.full_name) LIKE LOWER(?))
+    """
+    params = [q_clean, f"%{q_clean}%"]
+    if school_id:
+        sql += " AND u.school_id = ?"
+        params.append(school_id)
+    sql += " LIMIT 5"
+
+    cursor.execute(sql, params)
+    students = [dict(s) for s in cursor.fetchall()]
+
+    if not students:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Qeyd edilən məlumatla şagird tapılmadı")
+
+    st = students[0]
+    sid = st["id"]
+    cid = st["class_id"]
+
+    # Attendance stats
+    cursor.execute("""
+    SELECT status, COUNT(*) as count FROM attendance
+    WHERE student_id = ?
+    GROUP BY status
+    """, (sid,))
+    att_counts = {r["status"]: r["count"] for r in cursor.fetchall()}
+    total_days = sum(att_counts.values())
+    present_cnt = att_counts.get("present", 0)
+    absent_cnt = att_counts.get("absent", 0)
+    excused_cnt = att_counts.get("excused", 0)
+    att_pct = round((present_cnt / total_days * 100), 1) if total_days > 0 else 100.0
+
+    # Recent Summative / KSQ grades
+    cursor.execute("""
+    SELECT g.subject, g.grade_type, g.score, g.date, u.full_name as teacher_name
+    FROM grades g
+    LEFT JOIN users u ON g.teacher_id = u.id
+    WHERE g.student_id = ?
+    ORDER BY g.date DESC, g.id DESC
+    LIMIT 20
+    """, (sid,))
+    recent_grades = [dict(g) for g in cursor.fetchall()]
+
+    # Homeworks
+    homeworks = []
+    if cid:
+        cursor.execute("""
+        SELECT h.id, h.subject, h.title, h.description, h.due_date,
+               (SELECT status FROM student_homework_status shs WHERE shs.homework_id = h.id AND shs.student_id = ?) as status
+        FROM homework h
+        WHERE h.class_id = ? AND h.due_date >= date('now', '-7 days')
+        ORDER BY h.due_date ASC
+        LIMIT 10
+        """, (sid, cid))
+        homeworks = [dict(h) for h in cursor.fetchall()]
+
+    conn.close()
+    return {
+        "student": st,
+        "attendance": {
+            "total_recorded": total_days,
+            "present": present_cnt,
+            "absent": absent_cnt,
+            "excused": excused_cnt,
+            "percentage": att_pct
+        },
+        "recent_grades": recent_grades,
+        "homeworks": homeworks
+    }
 
 if not os.path.exists(STATIC_DIR):
     os.makedirs(STATIC_DIR, exist_ok=True)
