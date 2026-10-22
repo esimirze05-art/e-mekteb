@@ -125,7 +125,7 @@
   <main class="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6">
 
     <!-- ==================== VIEW 1: HOME ==================== -->
-    <div v-if="currentView === 'home'" class="space-y-8 max-w-3xl mx-auto py-8">
+    <div v-if="currentView === 'home'" class="space-y-8 max-w-5xl mx-auto py-8">
       
       <div class="text-center space-y-3">
         <img src="/static/logo.png?v=20261022" onerror="this.src='/static/icon.svg?v=20261022'" alt="E-məktəb Logo" class="w-20 h-20 rounded-3xl mx-auto shadow-lg shadow-brand-500/20 border border-amber-300/40 object-cover">
@@ -133,22 +133,22 @@
         <p class="text-sm text-slate-500">Azərbaycan Respublikasının bütün məktəbləri üçün elektron idarəetmə və jurnal sistemi</p>
       </div>
 
-      <!-- Action Cards (3 Pillars: Şagird, Müəllim, Məktəb Direktoru) -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-5 pt-2">
+      <!-- Action Cards (4 Pillars: Şagird, Müəllim, Məktəb Direktoru, Valideyn) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 pt-2">
         
         <!-- 1. ŞAGİRD GİRİŞİ -->
-        <div class="bg-white border-2 border-slate-200 hover:border-sky-400 rounded-3xl p-6 shadow-sm hover:shadow-xl transition-all flex flex-col justify-between h-72">
+        <div class="bg-white border-2 border-slate-200 hover:border-sky-400 rounded-3xl p-6 shadow-sm hover:shadow-xl transition-all flex flex-col justify-between h-80">
           <div>
             <div class="w-12 h-12 rounded-2xl bg-sky-100 text-sky-600 flex items-center justify-center mb-3">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
             </div>
             <h2 class="text-xl font-black text-slate-900">Şagird Portalı</h2>
             <p class="text-xs text-slate-500 mt-1 leading-relaxed">
-              Şəhər/rayon və məktəbinizi seçib qeydiyyatdan keçin. Ev tapşırıqları, davamiyyət və KSQ qiymətlərinizi izləyin.
+              Ev tapşırıqları, davamiyyət və KSQ qiymətlərinizi şəxsi kabinetinizdə izləyin.
             </p>
           </div>
           <div class="flex items-center gap-2 pt-4 border-t border-slate-100">
-            <button @click="openAuthModal('student', 'login')" class="touch-btn flex-1 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold text-center">
+            <button @click="openAuthModal('student', 'login')" class="touch-btn flex-1 py-2.5 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold text-center shadow-xs">
               Daxil Ol
             </button>
             <button @click="openAuthModal('student', 'register')" class="touch-btn flex-1 py-2.5 bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 rounded-xl text-xs font-bold text-center">
@@ -158,18 +158,18 @@
         </div>
 
         <!-- 2. MÜƏLLİM GİRİŞİ -->
-        <div class="bg-white border-2 border-slate-200 hover:border-violet-400 rounded-3xl p-6 shadow-sm hover:shadow-xl transition-all flex flex-col justify-between h-72">
+        <div class="bg-white border-2 border-slate-200 hover:border-violet-400 rounded-3xl p-6 shadow-sm hover:shadow-xl transition-all flex flex-col justify-between h-80">
           <div>
             <div class="w-12 h-12 rounded-2xl bg-violet-100 text-violet-600 flex items-center justify-center mb-3">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"/></svg>
             </div>
             <h2 class="text-xl font-black text-slate-900">Müəllim Kabineti</h2>
             <p class="text-xs text-slate-500 mt-1 leading-relaxed">
-              Məktəbinizi seçin, sinif rəhbəri və fənn jurnallarınızı aparın, şagirdlərinizi sinfə əlavə edin, qiymətləndirmə aparın.
+              Fənn və sinif rəhbəri jurnalları, KSQ/BSQ summativ qiymətləndirmə və ev tapşırıqları.
             </p>
           </div>
           <div class="flex items-center gap-2 pt-4 border-t border-slate-100">
-            <button @click="openAuthModal('teacher', 'login')" class="touch-btn flex-1 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold text-center">
+            <button @click="openAuthModal('teacher', 'login')" class="touch-btn flex-1 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-bold text-center shadow-xs">
               Daxil Ol
             </button>
             <button @click="openAuthModal('teacher', 'register')" class="touch-btn flex-1 py-2.5 bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200 rounded-xl text-xs font-bold text-center">
@@ -179,40 +179,45 @@
         </div>
 
         <!-- 3. MƏKTƏB DİREKTORU GİRİŞİ -->
-        <div class="bg-white border-2 border-emerald-200 hover:border-emerald-500 rounded-3xl p-6 shadow-sm hover:shadow-xl transition-all flex flex-col justify-between h-72">
+        <div class="bg-white border-2 border-emerald-200 hover:border-emerald-500 rounded-3xl p-6 shadow-sm hover:shadow-xl transition-all flex flex-col justify-between h-80">
           <div>
             <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-3">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
             </div>
             <h2 class="text-xl font-black text-slate-900">Məktəb Direktoru</h2>
             <p class="text-xs text-slate-500 mt-1 leading-relaxed">
-              Məktəbin rəhbəri üçün: Rəhbəri olduğunuz məktəbi seçin, müəllim və şagird heyətinə, siniflərə və jurnallara rəhbərlik edin.
+              Məktəbin müəllim və şagird heyətinə, siniflərin jurnallarına və rəsmi hesabatlara rəhbərlik edin.
             </p>
           </div>
           <div class="flex items-center gap-2 pt-4 border-t border-slate-100">
-            <button @click="openAuthModal('director', 'login')" class="touch-btn flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold text-center shadow-md">
+            <button @click="openAuthModal('director', 'login')" class="touch-btn flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold text-center shadow-xs">
               Daxil Ol
             </button>
             <button @click="openAuthModal('director', 'register')" class="touch-btn flex-1 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-xl text-xs font-bold text-center">
-              Direktor Qeydiyyatı
+              Qeydiyyat
             </button>
           </div>
-
-      <!-- 4. Valideyn Portalı Giriş Kartı -->
-      <div class="pt-3">
-        <div @click="openParentModal" class="touch-btn cursor-pointer bg-gradient-to-br from-amber-500/10 via-amber-50 to-orange-50 border-2 border-amber-300 hover:border-amber-500 rounded-3xl p-5 shadow-sm hover:shadow-md transition-all flex items-center gap-4 group">
-          <div class="w-14 h-14 rounded-2xl bg-amber-500 text-white flex items-center justify-center text-3xl shadow-md group-hover:scale-105 transition-transform">
-            👨‍👩‍👧
-          </div>
-          <div class="flex-1">
-            <span class="text-[10px] font-black uppercase tracking-wider text-amber-900 bg-amber-200/80 px-2.5 py-0.5 rounded-full">Gözətçi Rejimi</span>
-            <h3 class="text-base font-black text-slate-900 mt-1">Valideyn Şəxsi Kabineti</h3>
-            <p class="text-xs text-slate-600 mt-0.5">Şagird kodu və ya adı ilə övladınızın KSQ/BSQ ballarına, gündəliyinə və tapşırıqlarına baxın ➔</p>
-          </div>
-          <span class="touch-btn px-4 py-2 rounded-xl bg-amber-500 text-white font-bold text-xs shadow-md hidden sm:inline-block">Daxil Ol ➔</span>
         </div>
-      </div>
 
+        <!-- 4. VALİDEYN GİRİŞİ (DİREKTORUN YANINDA) -->
+        <div class="bg-white border-2 border-amber-200 hover:border-amber-500 rounded-3xl p-6 shadow-sm hover:shadow-xl transition-all flex flex-col justify-between h-80">
+          <div>
+            <div class="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mb-3 text-2xl shadow-xs">
+              👨‍👩‍👧
+            </div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-xl font-black text-slate-900">Valideyn Portalı</h2>
+              <span class="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">Gözətçi</span>
+            </div>
+            <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+              Şagird kodu və ya adı ilə övladınızın gündəliyi, KSQ balları, davamiyyət və tapşırıqlarını izləyin.
+            </p>
+          </div>
+          <div class="pt-4 border-t border-slate-100">
+            <button @click="openParentModal" class="touch-btn w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold text-center shadow-md flex items-center justify-center gap-1.5">
+              <span>Şəxsi Kabinetə Bax ➔</span>
+            </button>
+          </div>
         </div>
 
       </div>
